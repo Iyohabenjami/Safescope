@@ -1,14 +1,29 @@
 <!doctype html>
 <html>
 <head>
-<meta charset="utf-8"><title>IP Result</title>
+<meta charset="utf-8">
+<title>IP Report</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="p-4">
+<body class="bg-light p-4">
 <div class="container">
-  <h3>IP: {{ result.ip }}</h3>
-  <pre>{{ result | tojson(indent=2) }}</pre>
-  <a href="/" class="btn btn-sm btn-primary">Back</a>
+  <h2 class="mb-3 text-center"><i class="bi bi-hdd-network"></i> IP Report: {{ result.ip }}</h2>
+
+  <div class="card p-3 mb-4 shadow-sm">
+    <h5>VirusTotal Summary</h5>
+    <ul>
+      <li>Harmless: {{ result.vt_last_analysis_stats.harmless }}</li>
+      <li>Malicious: {{ result.vt_last_analysis_stats.malicious }}</li>
+      <li>Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</li>
+    </ul>
+  </div>
+
+  <div class="card p-3 mb-4 shadow-sm">
+    <h5>Reverse DNS / Info</h5>
+    <pre>{{ result | tojson(indent=2) }}</pre>
+  </div>
+
+  <a href="/" class="btn btn-primary">← Back to Dashboard</a>
 </div>
 </body>
 </html>
