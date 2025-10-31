@@ -1,29 +1,51 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>IP Report</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <title>IP Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .card { border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+  </style>
 </head>
-<body class="bg-light p-4">
-<div class="container">
-  <h2 class="mb-3 text-center"><i class="bi bi-hdd-network"></i> IP Report: {{ result.ip }}</h2>
+<body class="p-4">
+  <div class="container">
 
-  <div class="card p-3 mb-4 shadow-sm">
-    <h5>VirusTotal Summary</h5>
-    <ul>
-      <li>Harmless: {{ result.vt_last_analysis_stats.harmless }}</li>
-      <li>Malicious: {{ result.vt_last_analysis_stats.malicious }}</li>
-      <li>Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</li>
-    </ul>
+    <h2 class="mb-4 text-center fw-bold">
+      <i class="bi bi-hdd-network"></i> IP Report: {{ result.ip }}
+    </h2>
+
+    {% if result.vt_last_analysis_stats.malicious > 0 %}
+      <div class="alert alert-danger text-center fw-bold fs-5">
+        <i class="bi bi-exclamation-triangle-fill"></i> Dangerous — Malicious IP detected!
+      </div>
+    {% elif result.vt_last_analysis_stats.suspicious > 0 %}
+      <div class="alert alert-warning text-center fw-bold fs-5">
+        <i class="bi bi-shield-exclamation"></i> Suspicious — Requires further checking.
+      </div>
+    {% else %}
+      <div class="alert alert-success text-center fw-bold fs-5">
+        <i class="bi bi-shield-check"></i> Safe — No malicious reports detected.
+      </div>
+    {% endif %}
+
+    <div class="card p-3 mb-4">
+      <h5><i class="bi bi-activity"></i> VirusTotal Summary</h5>
+      <ul class="mb-0">
+        <li>Harmless: {{ result.vt_last_analysis_stats.harmless }}</li>
+        <li>Malicious: {{ result.vt_last_analysis_stats.malicious }}</li>
+        <li>Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</li>
+      </ul>
+    </div>
+
+    <div class="card p-3 mb-4">
+      <h5><i class="bi bi-arrow-repeat"></i> Reverse DNS / Info</h5>
+      <pre>{{ result | tojson(indent=2) }}</pre>
+    </div>
+
+    <a href="/" class="btn btn-primary w-100"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
   </div>
-
-  <div class="card p-3 mb-4 shadow-sm">
-    <h5>Reverse DNS / Info</h5>
-    <pre>{{ result | tojson(indent=2) }}</pre>
-  </div>
-
-  <a href="/" class="btn btn-primary">← Back to Dashboard</a>
-</div>
 </body>
 </html>
