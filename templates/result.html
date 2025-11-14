@@ -54,5 +54,32 @@
   <a href="#" class="btn btn-danger report-btn">
     <i class="bi bi-flag-fill"></i> Report
   </a>
+<script>
+document.getElementById("reportForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const payload = {
+        type: document.getElementById("report_type").value,
+        target: document.getElementById("report_target").value,
+        verdict: document.getElementById("report_verdict").value,
+        note: document.getElementById("report_note").value
+    };
+
+    let res = await fetch("/report", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    let json = await res.json();
+    if (json.status === "success") {
+        alert("Report submitted successfully");
+        const modal = bootstrap.Modal.getInstance(document.getElementById("reportModal"));
+        modal.hide();
+    } else {
+        alert("Failed to submit report");
+    }
+});
+</script>
 </body>
 </html>
