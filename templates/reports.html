@@ -19,11 +19,11 @@
     {% else %}
       <div class="list-group">
         {% for report in reports %}
-          <a href="/report/{{ report.filename }}" class="list-group-item list-group-item-action">
-            <strong>{{ report.data.type | upper }}</strong> —
-            {{ report.data.target }}  
-            <span class="text-muted float-end">{{ report.data.timestamp }}</span>
-          </a>
+          <div class="list-group-item">
+            <strong>{{ report.type | upper }}</strong> —
+            {{ report.target }}
+            <span class="text-muted float-end">{{ report.timestamp }}</span>
+          </div>
         {% endfor %}
       </div>
     {% endif %}
