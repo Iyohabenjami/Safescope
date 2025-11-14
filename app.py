@@ -196,6 +196,35 @@ def check_ip():
     safe_result = safe_serialize(result)
     return render_template("ip_result.html", result=safe_result)
 
+from flask import request, jsonify
+import json
+import os
+from datetime import datetime
 
+REPORT_FILE = "reports.json"
+
+@app.route("/report", methods=["POST"])
+def save_report():
+    data = request.json
+
+    if not data:
+        return jsonify({"status": "error", "message": "No data received"}), 400
+
+    # Load existing reports or create new list
+    if os.path.exists(REPORT_FILE):
+        with open(REPORT_FILE, "r") as f:
+            reports = json.load(f)
+    else:
+        reports = []
+
+    # Add timestamp
+    data["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    reports.append(data)
+
+    # Save back to JSON
+    with open(REPORT_FILE, "w") as f:
+        json.dump(reports, f, indent=4)
+
+    return jsonify({"status": "success"})
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
