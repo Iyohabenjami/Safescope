@@ -47,5 +47,86 @@
 
     <a href="/" class="btn btn-primary w-100"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
   </div>
+<!-- Floating Report Button -->
+<button class="btn btn-danger position-fixed" style="bottom:20px; right:20px; z-index:1000;"
+        data-bs-toggle="modal" data-bs-target="#reportModal">
+    <i class="bi bi-flag-fill"></i> Report
+</button>
+
+<!-- Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-flag"></i> Submit Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="reportForm">
+          <div class="mb-3">
+            <label class="form-label">Report Type</label>
+            <select id="report_type" class="form-control">
+              <option value="domain">Domain Issue</option>
+              <option value="ip">IP Issue</option>
+              <option value="security">Security Concern</option>
+              <option value="false_positive">False Positive</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Target</label>
+            <input type="text" id="report_target" class="form-control" value="{{ result.domain or result.ip }}" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Verdict</label>
+            <select id="report_verdict" class="form-control">
+              <option value="safe">Safe</option>
+              <option value="suspicious">Suspicious</option>
+              <option value="malicious">Malicious</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes (Optional)</label>
+            <textarea id="report_note" class="form-control" rows="3"></textarea>
+          </div>
+
+          <button class="btn btn-primary w-100">Submit Report</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report Submit Script -->
+<script>
+document.getElementById("reportForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const payload = {
+        type: document.getElementById("report_type").value,
+        target: document.getElementById("report_target").value,
+        verdict: document.getElementById("report_verdict").value,
+        note: document.getElementById("report_note").value
+    };
+
+    let res = await fetch("/report", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    let json = await res.json();
+    if (json.status === "success") {
+        alert("Report submitted successfully");
+        const modal = bootstrap.Modal.getInstance(document.getElementById("reportModal"));
+        modal.hide();
+    } else {
+        alert("Failed to submit report");
+    }
+});
+</script>
 </body>
 </html>
