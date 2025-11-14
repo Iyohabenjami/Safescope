@@ -216,35 +216,7 @@ def save_report():
         json.dump(reports, f, indent=4)
 
     return jsonify({"status": "success"})
-import os
-import json
 
-@app.route("/reports")
-def list_reports():
-    folder = "reports"
-    items = []
-
-    for filename in sorted(os.listdir(folder)):
-        if filename.endswith(".json"):
-            with open(os.path.join(folder, filename)) as f:
-                data = json.load(f)
-            items.append({"filename": filename, "data": data})
-
-    return render_template("reports.html", reports=items)
-
-
-@app.route("/report/<filename>")
-def view_single_report(filename):
-    folder = "reports"
-    filepath = os.path.join(folder, filename)
-
-    if not os.path.exists(filepath):
-        return "Report not found", 404
-
-    with open(filepath) as f:
-        data = json.load(f)
-
-    return f"<pre>{json.dumps(data, indent=2)}</pre>"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
