@@ -136,6 +136,23 @@ document.getElementById("reportForm").addEventListener("submit", async function(
         alert("Failed to submit report");  
     }  
 });  
+</script>
+<script>
+// Auto-select verdict based on VirusTotal stats
+document.addEventListener("DOMContentLoaded", function () {
+    const malicious = {{ result.vt_last_analysis_stats.malicious }};
+    const suspicious = {{ result.vt_last_analysis_stats.suspicious }};
+
+    const verdictSelect = document.getElementById("report_verdict");
+
+    if (malicious > 0) {
+        verdictSelect.value = "malicious";
+    } else if (suspicious > 0) {
+        verdictSelect.value = "suspicious";
+    } else {
+        verdictSelect.value = "safe";
+    }
+});
 </script>  
 </body>  
 </html>  
