@@ -3,7 +3,7 @@ import json
 import datetime
 from collections.abc import Mapping, Iterable
 
-from flask import Flask, request, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify
 from dotenv import load_dotenv
 import vt
 import whois
@@ -11,39 +11,36 @@ import dns.resolver
 import requests
 import socket
 
+# DO NOT overwrite datetime module again
+# Removed: from datetime import datetime
+
 load_dotenv()
 VT_API_KEY = os.getenv("VT_API_KEY")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "change-this-secret")
 
+
 def vt_client():
     if not VT_API_KEY:
         return None
     return vt.Client(VT_API_KEY)
 
+
 def safe_serialize(obj):
-    """
-    Recursively convert obj into JSON-serializable Python primitives.
-    Handles dict-like, list-like, objects with to_json/to_dict, datetimes, bytes, etc.
-    Falls back to str(obj) when necessary.
-    """
-    # None / primitives
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
 
-    # Datetime
+    # FIXED datetime handling
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
 
-    # bytes
     if isinstance(obj, (bytes, bytearray)):
         try:
             return obj.decode("utf-8", errors="replace")
         except Exception:
             return str(obj)
 
-    # Mapping (dict-like)
     if isinstance(obj, Mapping):
         out = {}
         for k, v in obj.items():
@@ -53,11 +50,9 @@ def safe_serialize(obj):
                 out[str(k)] = str(v)
         return out
 
-    # Iterable (list/tuple/set, but not str/bytes)
     if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, bytearray)):
         return [safe_serialize(i) for i in obj]
 
-    # vt-py / custom objects that provide to_json
     if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
         try:
             decoded = json.loads(obj.to_json())
@@ -65,21 +60,18 @@ def safe_serialize(obj):
         except Exception:
             pass
 
-    # objects with to_dict()
     if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
         try:
             return safe_serialize(obj.to_dict())
         except Exception:
             pass
 
-    # Mapping-like via items()
     if hasattr(obj, "items") and callable(getattr(obj, "items")):
         try:
             return {str(k): safe_serialize(v) for k, v in obj.items()}
         except Exception:
             pass
 
-    # Fallback: string representation
     try:
         return str(obj)
     except Exception:
@@ -103,17 +95,20 @@ def scan_file():
         flash("VirusTotal API key not configured.", "danger")
         return redirect(url_for("index"))
 
-    path = f"./uploads/{f.filename}"
     os.makedirs("./uploads", exist_ok=True)
+    path = f"./uploads/{f.filename}"
     f.save(path)
 
     try:
         with open(path, "rb") as fh:
             analysis = client.scan_file(fh, wait_for_completion=True)
+
         stats = analysis.stats if hasattr(analysis, "stats") else {}
         verdict = {"malicious_engines": stats.get("malicious", "N/A")}
+
         flash(f"Scan completed. Malicious engines: {verdict['malicious_engines']}", "success")
         return redirect(url_for("index"))
+
     except Exception as e:
         flash(f"Error scanning: {str(e)}", "danger")
         return redirect(url_for("index"))
@@ -130,7 +125,6 @@ def check_domain():
 
     try:
         w = whois.whois(domain)
-        # keep strings only where possible
         result["whois"] = {
             "domain_name": safe_serialize(w.get("domain_name")),
             "registrar": safe_serialize(w.get("registrar")),
@@ -149,9 +143,7 @@ def check_domain():
     if client:
         try:
             resource = client.get_object(f"/domains/{domain}")
-            # convert the vt object or attributes into serializable form
             result["vt_last_analysis_stats"] = safe_serialize(getattr(resource, "last_analysis_stats", {}))
-            # if you want the whole resource, use: result["vt_resource"] = safe_serialize(resource)
         except Exception as e:
             result["vt_error"] = str(e)
     else:
@@ -167,6 +159,7 @@ def check_ip():
     if not ip:
         flash("No IP provided", "warning")
         return redirect(url_for("index"))
+
     result = {"ip": ip}
 
     try:
@@ -196,10 +189,10 @@ def check_ip():
     safe_result = safe_serialize(result)
     return render_template("ip_result.html", result=safe_result)
 
-from flask import request, jsonify
-import json
-import os
-from datetime import datetime
+
+# ======================
+# REPORT SYSTEM (JSON)
+# ======================
 
 REPORT_FILE = "reports.json"
 
@@ -210,21 +203,20 @@ def save_report():
     if not data:
         return jsonify({"status": "error", "message": "No data received"}), 400
 
-    # Load existing reports or create new list
     if os.path.exists(REPORT_FILE):
         with open(REPORT_FILE, "r") as f:
             reports = json.load(f)
     else:
         reports = []
 
-    # Add timestamp
-    data["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    data["timestamp"] = datetime.datetime.utcnow().isoformat() + "Z"
     reports.append(data)
 
-    # Save back to JSON
     with open(REPORT_FILE, "w") as f:
         json.dump(reports, f, indent=4)
 
     return jsonify({"status": "success"})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
