@@ -191,32 +191,26 @@ def check_ip():
 
 
 # ======================
-# REPORT SYSTEM (JSON)
+# REPORT SYSTEM (IN-MEMORY)
 # ======================
 
-REPORT_FILE = "reports.json"
+REPORT_STORE = []   # All reports will live in RAM
 
 @app.route("/report", methods=["POST"])
 def save_report():
     data = request.json
-
     if not data:
         return jsonify({"status": "error", "message": "No data received"}), 400
 
-    if os.path.exists(REPORT_FILE):
-        with open(REPORT_FILE, "r") as f:
-            reports = json.load(f)
-    else:
-        reports = []
-
     data["timestamp"] = datetime.datetime.utcnow().isoformat() + "Z"
-    reports.append(data)
-
-    with open(REPORT_FILE, "w") as f:
-        json.dump(reports, f, indent=4)
+    REPORT_STORE.append(data)
 
     return jsonify({"status": "success"})
 
+
+@app.route("/reports")
+def list_reports():
+    return render_template("reports.html", reports=REPORT_STORE)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
