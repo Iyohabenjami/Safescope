@@ -153,7 +153,14 @@ document.addEventListener("DOMContentLoaded", function () {
         verdictSelect.value = "safe";
     }
 });
-</script>  
+</script>
+<script>
+// Auto-select report type for domain page
+document.addEventListener("DOMContentLoaded", function () {
+    const typeSelect = document.getElementById("report_type");
+    typeSelect.value = "domain";
+});
+</script> 
 </body>  
 </html>  
   
