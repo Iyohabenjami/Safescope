@@ -1,177 +1,60 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Domain Report</title>
-
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- Custom UI Styles -->
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="utf-8">
+  <title>Domain Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
+<body class="ui-bg">
 
-<body class="gradient-bg">
-
-<div class="container py-5">
-
-    <!-- Header Section -->
-    <div class="glass-card text-center p-5 mb-5">
-        <h1 class="display-5 fw-bold text-white">Domain Report</h1>
-        <p class="fs-4 text-light">{{ result.domain }}</p>
+  <div class="container py-5">
+    <div class="panel-card p-4 mb-4">
+      <h2 class="page-title fw-bold">{{ result.domain }}</h2>
+      <p class="small text-light">Domain check · VirusTotal & WHOIS</p>
     </div>
 
-    <!-- Verdict Banner -->
     {% if result.vt_last_analysis_stats.malicious > 0 %}
-        <div class="alert-modern alert-danger-modern">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            Dangerous — Malicious indicators found
-        </div>
+      <div class="alert-modern alert-danger-modern"> <i class="bi bi-exclamation-triangle-fill"></i> Dangerous — Malicious indicators found</div>
     {% elif result.vt_last_analysis_stats.suspicious > 0 %}
-        <div class="alert-modern alert-warning-modern">
-            <i class="bi bi-shield-exclamation"></i>
-            Suspicious — Needs further analysis
-        </div>
+      <div class="alert-modern alert-warning-modern"> <i class="bi bi-shield-exclamation"></i> Suspicious — Needs further analysis</div>
     {% else %}
-        <div class="alert-modern alert-success-modern">
-            <i class="bi bi-shield-check"></i>
-            Safe — No malicious reports detected
-        </div>
+      <div class="alert-modern alert-success-modern"> <i class="bi bi-shield-check"></i> Safe — No malicious reports detected</div>
     {% endif %}
 
-    <!-- VT Summary -->
-    <div class="dark-card mb-4 p-4">
-        <h4 class="text-white mb-3"><i class="bi bi-activity"></i> VirusTotal Summary</h4>
-        <ul class="text-light fs-5">
-            <li>Harmless: {{ result.vt_last_analysis_stats.harmless }}</li>
-            <li>Malicious: {{ result.vt_last_analysis_stats.malicious }}</li>
-            <li>Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</li>
-        </ul>
+    <div class="panel-card p-4 mb-3">
+      <h5 class="text-white">VirusTotal Summary</h5>
+      <div class="small text-light">Harmless: {{ result.vt_last_analysis_stats.harmless }}</div>
+      <div class="small text-light">Malicious: {{ result.vt_last_analysis_stats.malicious }}</div>
+      <div class="small text-light">Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</div>
     </div>
 
-    <!-- WHOIS -->
-    <div class="dark-card mb-4 p-4">
-        <h4 class="text-white mb-3"><i class="bi bi-info-circle"></i> WHOIS Information</h4>
-        <p class="text-light"><strong>Registrar:</strong> {{ result.whois.registrar }}</p>
-        <p class="text-light"><strong>Created:</strong> {{ result.whois.creation_date[0] }}</p>
+    <div class="panel-card p-4 mb-3">
+      <h5 class="text-white">WHOIS</h5>
+      <div class="small text-light">Registrar: {{ result.whois.registrar }}</div>
+      <div class="small text-light">Created: {% if result.whois.creation_date is iterable %}{{ result.whois.creation_date[0] }}{% else %}{{ result.whois.creation_date }}{% endif %}</div>
     </div>
 
-    <!-- DNS A Records -->
-    <div class="dark-card mb-4 p-4">
-        <h4 class="text-white mb-3"><i class="bi bi-database"></i> DNS A Records</h4>
-        <pre class="json-block">{{ result.a_records | tojson(indent=2) }}</pre>
+    <div class="panel-card p-4 mb-4">
+      <h5 class="text-white">DNS A Records</h5>
+      <pre class="json-block">{{ result.a_records | tojson(indent=2) }}</pre>
     </div>
 
-    <!-- Back button -->
-    <a href="/" class="btn rounded-pill main-btn w-100 py-3 fs-5">
-        <i class="bi bi-arrow-left"></i> Back to Dashboard
-    </a>
-</div>
-
-<!-- Floating Report Button -->
-<button class="floating-report-btn"
-        data-bs-toggle="modal" data-bs-target="#reportModal">
-    <i class="bi bi-flag-fill"></i>
-</button>
-
-<!-- Report Modal -->
-<div class="modal fade" id="reportModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content modal-dark">
-            <div class="modal-header">
-                <h5 class="modal-title text-white"><i class="bi bi-flag"></i> Submit Report</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body text-white">
-                <form id="reportForm">
-
-                    <div class="mb-3">
-                        <label class="form-label">Report Type</label>
-                        <select id="report_type" class="form-control dark-input">
-                            <option value="domain">Domain Issue</option>
-                            <option value="ip">IP Issue</option>
-                            <option value="security">Security Concern</option>
-                            <option value="false_positive">False Positive</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Target</label>
-                        <input type="text" id="report_target"
-                               class="form-control dark-input"
-                               value="{{ result.domain }}" readonly>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Verdict</label>
-                        <select id="report_verdict" class="form-control dark-input">
-                            <option value="safe">Safe</option>
-                            <option value="suspicious">Suspicious</option>
-                            <option value="malicious">Malicious</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Notes (Optional)</label>
-                        <textarea id="report_note" class="form-control dark-input" rows="3"></textarea>
-                    </div>
-
-                    <button class="btn main-btn w-100 py-2">Submit Report</button>
-
-                </form>
-            </div>
-        </div>
+    <div class="d-grid gap-2 mb-4">
+      <button class="btn main-btn" data-bs-toggle="modal" data-bs-target="#reportModal">Report</button>
+      <a class="btn btn-panel-outline" href="/">Back to Dashboard</a>
     </div>
-</div>
+  </div>
 
-<!-- Bootstrap Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // expose page globals for modal script
+    window.SAFE_SCOPE_REPORT_TARGET = "{{ result.domain }}";
+    window.SAFE_SCOPE_REPORT_VERDICT = "{{ 'malicious' if result.vt_last_analysis_stats.malicious > 0 else ('suspicious' if result.vt_last_analysis_stats.suspicious > 0 else 'safe') }}";
+  </script>
 
-<!-- Report JS -->
-<script>
-document.getElementById("reportForm").addEventListener("submit", async function(e) {
-    e.preventDefault();
-
-    const payload = {
-        type: document.getElementById("report_type").value,
-        target: document.getElementById("report_target").value,
-        verdict: document.getElementById("report_verdict").value,
-        note: document.getElementById("report_note").value
-    };
-
-    let res = await fetch("/report", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    let json = await res.json();
-
-    if (json.status === "success") {
-        alert("Report submitted successfully");
-        bootstrap.Modal.getInstance(document.getElementById("reportModal")).hide();
-    } else {
-        alert("Failed to submit report");
-    }
-});
-</script>
-
-<script>
-// Auto-select verdict
-document.addEventListener("DOMContentLoaded", function () {
-    const malicious = {{ result.vt_last_analysis_stats.malicious }};
-    const suspicious = {{ result.vt_last_analysis_stats.suspicious }};
-    const verdictSelect = document.getElementById("report_verdict");
-
-    if (malicious > 0) verdictSelect.value = "malicious";
-    else if (suspicious > 0) verdictSelect.value = "suspicious";
-    else verdictSelect.value = "safe";
-
-    document.getElementById("report_type").value = "domain";
-});
-</script>
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  {% include 'report_modal.html' %}
 </body>
 </html>
