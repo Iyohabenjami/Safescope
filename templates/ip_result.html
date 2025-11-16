@@ -3,156 +3,51 @@
 <head>
   <meta charset="utf-8">
   <title>IP Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8f9fa; }
-    .card { border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-  </style>
 </head>
-<body class="p-4">
-  <div class="container">
+<body class="ui-bg">
 
-    <h2 class="mb-4 text-center fw-bold">
-      <i class="bi bi-hdd-network"></i> IP Report: {{ result.ip }}
-    </h2>
+  <div class="container py-5">
+    <div class="panel-card p-4 mb-4">
+      <h2 class="page-title fw-bold">{{ result.ip }}</h2>
+      <p class="small text-light">IP check · Reverse DNS · VirusTotal</p>
+    </div>
 
     {% if result.vt_last_analysis_stats.malicious > 0 %}
-      <div class="alert alert-danger text-center fw-bold fs-5">
-        <i class="bi bi-exclamation-triangle-fill"></i> Dangerous — Malicious IP detected!
-      </div>
+      <div class="alert-modern alert-danger-modern"><i class="bi bi-exclamation-triangle-fill"></i> Dangerous — Malicious IP detected!</div>
     {% elif result.vt_last_analysis_stats.suspicious > 0 %}
-      <div class="alert alert-warning text-center fw-bold fs-5">
-        <i class="bi bi-shield-exclamation"></i> Suspicious — Requires further checking.
-      </div>
+      <div class="alert-modern alert-warning-modern"><i class="bi bi-shield-exclamation"></i> Suspicious — Requires further checking.</div>
     {% else %}
-      <div class="alert alert-success text-center fw-bold fs-5">
-        <i class="bi bi-shield-check"></i> Safe — No malicious reports detected.
-      </div>
+      <div class="alert-modern alert-success-modern"><i class="bi bi-shield-check"></i> Safe — No malicious reports detected.</div>
     {% endif %}
 
-    <div class="card p-3 mb-4">
-      <h5><i class="bi bi-activity"></i> VirusTotal Summary</h5>
-      <ul class="mb-0">
-        <li>Harmless: {{ result.vt_last_analysis_stats.harmless }}</li>
-        <li>Malicious: {{ result.vt_last_analysis_stats.malicious }}</li>
-        <li>Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</li>
-      </ul>
+    <div class="panel-card p-4 mb-3">
+      <h5 class="text-white">VirusTotal Summary</h5>
+      <div class="small text-light">Harmless: {{ result.vt_last_analysis_stats.harmless }}</div>
+      <div class="small text-light">Malicious: {{ result.vt_last_analysis_stats.malicious }}</div>
+      <div class="small text-light">Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</div>
     </div>
 
-    <div class="card p-3 mb-4">
-      <h5><i class="bi bi-arrow-repeat"></i> Reverse DNS / Info</h5>
-      <pre>{{ result | tojson(indent=2) }}</pre>
+    <div class="panel-card p-4 mb-4">
+      <h5 class="text-white">Reverse DNS & Info</h5>
+      <pre class="json-block">{{ result | tojson(indent=2) }}</pre>
     </div>
 
-    <a href="/" class="btn btn-primary w-100"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
-  </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Floating Report Button -->
-<button class="btn btn-danger position-fixed" style="bottom:20px; right:20px; z-index:1000;"
-        data-bs-toggle="modal" data-bs-target="#reportModal">
-    <i class="bi bi-flag-fill"></i> Report
-</button>
-
-<!-- Report Modal -->
-<div class="modal fade" id="reportModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-flag"></i> Submit Report</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <form id="reportForm">
-          <div class="mb-3">
-            <label class="form-label">Report Type</label>
-            <select id="report_type" class="form-control">
-              <option value="domain">Domain Issue</option>
-              <option value="ip">IP Issue</option>
-              <option value="security">Security Concern</option>
-              <option value="false_positive">False Positive</option>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Target</label>
-            <input type="text" id="report_target" class="form-control" value="{{ result.ip }}" readonly>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Verdict</label>
-            <select id="report_verdict" class="form-control">
-              <option value="safe">Safe</option>
-              <option value="suspicious">Suspicious</option>
-              <option value="malicious">Malicious</option>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Notes (Optional)</label>
-            <textarea id="report_note" class="form-control" rows="3"></textarea>
-          </div>
-
-          <button class="btn btn-primary w-100">Submit Report</button>
-        </form>
-      </div>
+    <div class="d-grid gap-2 mb-4">
+      <button class="btn main-btn" data-bs-toggle="modal" data-bs-target="#reportModal">Report</button>
+      <a class="btn btn-panel-outline" href="/">Back to Dashboard</a>
     </div>
   </div>
-</div>
 
-<!-- Report Submit Script -->
-<script>
-document.getElementById("reportForm").addEventListener("submit", async function(e) {
-    e.preventDefault();
+  <script>
+    window.SAFE_SCOPE_REPORT_TARGET = "{{ result.ip }}";
+    window.SAFE_SCOPE_REPORT_VERDICT = "{{ 'malicious' if result.vt_last_analysis_stats.malicious > 0 else ('suspicious' if result.vt_last_analysis_stats.suspicious > 0 else 'safe') }}";
+  </script>
 
-    const payload = {
-        type: document.getElementById("report_type").value,
-        target: document.getElementById("report_target").value,
-        verdict: document.getElementById("report_verdict").value,
-        note: document.getElementById("report_note").value
-    };
-
-    let res = await fetch("/report", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
-
-    let json = await res.json();
-    if (json.status === "success") {
-        alert("Report submitted successfully");
-        const modal = bootstrap.Modal.getInstance(document.getElementById("reportModal"));
-        modal.hide();
-    } else {
-        alert("Failed to submit report");
-    }
-});
-</script>
-<script>
-// Auto-select verdict based on VirusTotal stats
-document.addEventListener("DOMContentLoaded", function () {
-    const malicious = {{ result.vt_last_analysis_stats.malicious }};
-    const suspicious = {{ result.vt_last_analysis_stats.suspicious }};
-
-    const verdictSelect = document.getElementById("report_verdict");
-
-    if (malicious > 0) {
-        verdictSelect.value = "malicious";
-    } else if (suspicious > 0) {
-        verdictSelect.value = "suspicious";
-    } else {
-        verdictSelect.value = "safe";
-    }
-});
-</script>
-<script>
-// Auto-select report type for IP page
-document.addEventListener("DOMContentLoaded", function () {
-    const typeSelect = document.getElementById("report_type");
-    typeSelect.value = "ip";
-});
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  {% include 'report_modal.html' %}
 </body>
 </html>
