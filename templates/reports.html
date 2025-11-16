@@ -2,33 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>All Reports</title>
+  <title>Submitted Reports</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8f9fa; }
-    .card { border-radius: 12px; }
-  </style>
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
-
-<body class="p-4">
-  <div class="container">
-    <h2 class="mb-4 fw-bold text-center">Submitted Reports</h2>
+<body class="ui-bg">
+  <div class="container py-5">
+    <div class="panel-card p-4 mb-4">
+      <h3 class="fw-bold text-white">Submitted Reports</h3>
+      <p class="small text-light">Reports saved in-memory for this session.</p>
+    </div>
 
     {% if reports|length == 0 %}
-      <div class="alert alert-warning text-center">No reports submitted yet.</div>
+      <div class="panel-card p-4 text-center text-light">No reports submitted yet.</div>
     {% else %}
       <div class="list-group">
         {% for report in reports %}
-          <div class="list-group-item">
-            <strong>{{ report.type | upper }}</strong> —
-            {{ report.target }}
-            <span class="text-muted float-end">{{ report.timestamp }}</span>
+          <div class="list-group-item panel-card mb-2">
+            <div class="d-flex justify-content-between">
+              <div>
+                <strong class="text-white">{{ report.type | upper }}</strong>
+                <div class="small text-light">{{ report.target }}</div>
+              </div>
+              <div class="text-muted small">{{ report.timestamp }}</div>
+            </div>
           </div>
         {% endfor %}
       </div>
     {% endif %}
 
-    <a href="/" class="btn btn-primary w-100 mt-4">Back to Dashboard</a>
+    <a href="/" class="btn btn-panel mt-4">Back to Dashboard</a>
   </div>
 </body>
 </html>
