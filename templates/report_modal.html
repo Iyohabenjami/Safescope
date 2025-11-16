@@ -1,45 +1,37 @@
 <!-- templates/report_modal.html -->
 <div class="modal fade" id="reportModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content modal-dark">
-      <div class="modal-header">
-        <h5 class="modal-title text-white"><i class="bi bi-flag"></i> Submit Report</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <div class="modal-content bg-gray-900 text-white rounded-lg border border-gray-700 p-4">
+      <div class="modal-header flex justify-between items-center">
+        <h5 class="text-lg font-semibold"><i class="ri-flag-line mr-2"></i> Submit Report</h5>
+        <button type="button" class="btn-close text-white" data-bs-dismiss="modal">&times;</button>
       </div>
 
-      <div class="modal-body text-white">
-        <form id="reportForm">
-          <div class="mb-3">
-            <label class="form-label small">Report Type</label>
-            <select id="report_type" class="form-control dark-input">
-              <option value="domain">Domain Issue</option>
-              <option value="ip">IP Issue</option>
-              <option value="security">Security Concern</option>
-              <option value="false_positive">False Positive</option>
-            </select>
-          </div>
+      <div class="modal-body mt-3">
+        <form id="reportFormLocal" class="space-y-3">
+          <label class="block text-sm">Report Type</label>
+          <select id="report_type_local" class="input-field w-full">
+            <option value="domain">Domain Issue</option>
+            <option value="ip">IP Issue</option>
+            <option value="security">Security Concern</option>
+            <option value="false_positive">False Positive</option>
+          </select>
 
-          <div class="mb-3">
-            <label class="form-label small">Target</label>
-            <input id="report_target" class="form-control dark-input" readonly />
-          </div>
+          <label class="block text-sm">Target</label>
+          <input id="report_target_local" class="input-field w-full" readonly />
 
-          <div class="mb-3">
-            <label class="form-label small">Verdict</label>
-            <select id="report_verdict" class="form-control dark-input">
-              <option value="safe">Safe</option>
-              <option value="suspicious">Suspicious</option>
-              <option value="malicious">Malicious</option>
-            </select>
-          </div>
+          <label class="block text-sm">Verdict</label>
+          <select id="report_verdict_local" class="input-field w-full">
+            <option value="safe">Safe</option>
+            <option value="suspicious">Suspicious</option>
+            <option value="malicious">Malicious</option>
+          </select>
 
-          <div class="mb-3">
-            <label class="form-label small">Notes</label>
-            <textarea id="report_note" class="form-control dark-input" rows="3"></textarea>
-          </div>
+          <label class="block text-sm">Notes (optional)</label>
+          <textarea id="report_note_local" class="input-field w-full" rows="3"></textarea>
 
-          <div class="d-grid">
-            <button class="btn main-btn" type="submit">Send Report</button>
+          <div class="text-right">
+            <button type="submit" class="btn-primary px-4 py-2">Send</button>
           </div>
         </form>
       </div>
@@ -48,49 +40,48 @@
 </div>
 
 <script>
-/* Report modal generic script – works on all result pages.
-   It fills target/verdict/type automatically from page globals or from .page-title element.
-*/
+/* report modal wiring for index page and result pages */
 document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('reportForm');
-  form.addEventListener('submit', async function (e) {
+  const form = document.getElementById('reportFormLocal');
+  form?.addEventListener('submit', async function (e) {
     e.preventDefault();
     const payload = {
-      type: document.getElementById('report_type').value,
-      target: document.getElementById('report_target').value,
-      verdict: document.getElementById('report_verdict').value,
-      note: document.getElementById('report_note').value
+      type: document.getElementById('report_type_local').value,
+      target: document.getElementById('report_target_local').value,
+      verdict: document.getElementById('report_verdict_local').value,
+      note: document.getElementById('report_note_local').value
     };
+
     try {
-      const res = await fetch('/report', {
+      const r = await fetch('/report', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
       });
-      const j = await res.json();
+      const j = await r.json();
       if (j.status === 'success') {
         alert('Report submitted');
-        const modal = bootstrap.Modal.getInstance(document.getElementById('reportModal'));
-        modal.hide();
+        const modalEl = document.getElementById('reportModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
       } else {
-        alert('Failed: ' + (j.message || 'unknown'));
+        alert('Report failed: ' + (j.message || 'unknown'));
       }
     } catch (err) {
-      alert('Network error');
+      alert('Network error sending report');
     }
   });
 
+  // When modal opens, fill the target field from global var if present
   const modalEl = document.getElementById('reportModal');
-  modalEl.addEventListener('show.bs.modal', function () {
-    // Prefer explicit page-level variables, else try .page-title or .title text
+  modalEl?.addEventListener('show.bs.modal', function () {
     const target = window.SAFE_SCOPE_REPORT_TARGET || document.querySelector('.page-title')?.textContent?.trim() || '';
     const verdict = window.SAFE_SCOPE_REPORT_VERDICT || 'safe';
-    document.getElementById('report_target').value = target;
-    document.getElementById('report_verdict').value = verdict;
-
-    const typeSel = document.getElementById('report_type');
-    if (/\d+\.\d+\.\d+\.\d+/.test(target)) typeSel.value = 'ip';
-    else typeSel.value = 'domain';
+    document.getElementById('report_target_local').value = target;
+    document.getElementById('report_verdict_local').value = verdict;
+    // auto-set type by rudimentary IP regex
+    const typeSel = document.getElementById('report_type_local');
+    typeSel.value = /\d+\.\d+\.\d+\.\d+/.test(target) ? 'ip' : 'domain';
   });
 });
 </script>
