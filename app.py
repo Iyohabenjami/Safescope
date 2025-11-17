@@ -1,18 +1,16 @@
 import os
 import json
+import hashlib
 import datetime
 from collections.abc import Mapping, Iterable
 
-from flask import Flask, request, render_template, redirect, url_for, flash, jsonify
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, send_from_directory
 from dotenv import load_dotenv
 import vt
 import whois
 import dns.resolver
 import requests
 import socket
-
-# DO NOT overwrite datetime module again
-# Removed: from datetime import datetime
 
 load_dotenv()
 VT_API_KEY = os.getenv("VT_API_KEY")
@@ -24,14 +22,17 @@ app.secret_key = os.getenv("FLASK_SECRET", "change-this-secret")
 def vt_client():
     if not VT_API_KEY:
         return None
-    return vt.Client(VT_API_KEY)
+    try:
+        return vt.Client(VT_API_KEY)
+    except Exception:
+        return None
 
 
 def safe_serialize(obj):
+    """Turn objects into JSON-serializable primitives."""
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
 
-    # FIXED datetime handling
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
 
@@ -78,46 +79,95 @@ def safe_serialize(obj):
         return repr(obj)
 
 
+def client_wants_json():
+    """Return True if the incoming request expects JSON (fetch/ajax)."""
+    # request.is_json checks for application/json content-type
+    accept = request.headers.get("Accept", "")
+    return request.is_json or "application/json" in accept.lower()
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
+# ---- Scan file ----
 @app.route("/scan-file", methods=["POST"])
 def scan_file():
+    # Handle file upload from form or fetch(FormData)
     f = request.files.get("file")
     if not f or f.filename == "":
+        # If Ajax expects JSON, return JSON error
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No file selected"}), 400
         flash("No file selected", "warning")
         return redirect(url_for("index"))
 
-    client = vt_client()
-    if not client:
-        flash("VirusTotal API key not configured.", "danger")
-        return redirect(url_for("index"))
-
     os.makedirs("./uploads", exist_ok=True)
-    path = f"./uploads/{f.filename}"
+    safe_filename = f.filename.replace("/", "_").replace("..", "_")
+    path = os.path.join("./uploads", safe_filename)
     f.save(path)
 
+    # compute basic metadata
     try:
+        size = os.path.getsize(path)
+    except Exception:
+        size = None
+
+    md5 = ""
+    try:
+        h = hashlib.md5()
         with open(path, "rb") as fh:
-            analysis = client.scan_file(fh, wait_for_completion=True)
+            for chunk in iter(lambda: fh.read(8192), b""):
+                h.update(chunk)
+        md5 = h.hexdigest()
+    except Exception:
+        md5 = ""
 
-        stats = analysis.stats if hasattr(analysis, "stats") else {}
-        verdict = {"malicious_engines": stats.get("malicious", "N/A")}
+    result = {
+        "filename": safe_filename,
+        "size": size,
+        "md5": md5,
+        "uploaded_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
 
-        flash(f"Scan completed. Malicious engines: {verdict['malicious_engines']}", "success")
-        return redirect(url_for("index"))
+    client = vt_client()
+    if client:
+        try:
+            # open file again for vt client
+            with open(path, "rb") as fh:
+                analysis = client.scan_file(fh, wait_for_completion=True)
+            # try to fetch some stats if available
+            stats = getattr(analysis, "stats", None) or {}
+            result["vt_last_analysis_stats"] = safe_serialize(stats)
+            result["vt_status"] = "scanned"
+        except Exception as e:
+            result["vt_error"] = str(e)
+    else:
+        result["vt_error"] = "VT API key not configured."
 
-    except Exception as e:
-        flash(f"Error scanning: {str(e)}", "danger")
-        return redirect(url_for("index"))
+    # Return JSON for AJAX clients; otherwise behave like before (flash + redirect)
+    if client_wants_json():
+        return jsonify(result)
+
+    flash(f"Scan completed. File saved: {safe_filename}", "success")
+    return redirect(url_for("index"))
 
 
+# ---- Check domain ----
 @app.route("/check-domain", methods=["POST"])
 def check_domain():
-    domain = request.form.get("domain", "").strip()
+    # Accept both form-data and JSON
+    data = None
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        domain = (data.get("domain") or "").strip()
+    else:
+        domain = request.form.get("domain", "").strip()
+
     if not domain:
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No domain provided"}), 400
         flash("No domain provided", "warning")
         return redirect(url_for("index"))
 
@@ -128,7 +178,7 @@ def check_domain():
         result["whois"] = {
             "domain_name": safe_serialize(w.get("domain_name")),
             "registrar": safe_serialize(w.get("registrar")),
-            "creation_date": safe_serialize(w.get("creation_date"))
+            "creation_date": safe_serialize(w.get("creation_date")),
         }
     except Exception as e:
         result["whois_error"] = str(e)
@@ -144,19 +194,39 @@ def check_domain():
         try:
             resource = client.get_object(f"/domains/{domain}")
             result["vt_last_analysis_stats"] = safe_serialize(getattr(resource, "last_analysis_stats", {}))
+            # optionally add last_analysis_results summary (small)
+            try:
+                la = getattr(resource, "last_analysis_results", None)
+                result["vt_last_analysis_results"] = safe_serialize(la) if la else {}
+            except Exception:
+                pass
         except Exception as e:
             result["vt_error"] = str(e)
     else:
         result["vt_error"] = "VT API key not configured."
 
     safe_result = safe_serialize(result)
+
+    if client_wants_json():
+        return jsonify(safe_result)
+
     return render_template("domain_result.html", result=safe_result)
 
 
+# ---- Check IP ----
 @app.route("/check-ip", methods=["POST"])
 def check_ip():
-    ip = request.form.get("ip", "").strip()
+    # Accept both form-data and JSON
+    data = None
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        ip = (data.get("ip") or "").strip()
+    else:
+        ip = request.form.get("ip", "").strip()
+
     if not ip:
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No ip provided"}), 400
         flash("No IP provided", "warning")
         return redirect(url_for("index"))
 
@@ -187,18 +257,22 @@ def check_ip():
         result["vt_error"] = "VT API key not configured."
 
     safe_result = safe_serialize(result)
+
+    if client_wants_json():
+        return jsonify(safe_result)
+
     return render_template("ip_result.html", result=safe_result)
 
 
 # ======================
 # REPORT SYSTEM (IN-MEMORY)
 # ======================
+REPORT_STORE = []  # All reports will live in RAM
 
-REPORT_STORE = []   # All reports will live in RAM
 
 @app.route("/report", methods=["POST"])
 def save_report():
-    data = request.json
+    data = request.get_json(silent=True) or request.json or {}
     if not data:
         return jsonify({"status": "error", "message": "No data received"}), 400
 
@@ -210,7 +284,26 @@ def save_report():
 
 @app.route("/reports")
 def list_reports():
-    return render_template("reports.html", reports=REPORT_STORE)
+    # If someone visits /reports via fetch expecting JSON, return JSON
+    if client_wants_json():
+        return jsonify(REPORT_STORE)
+    # otherwise render template
+    # convert REPORT_STORE entries into the shape expected by reports.html if necessary
+    # the template expects report objects with 'data' and optional 'filename', but earlier implementation used different shapes
+    # We'll normalize simple shape: { 'data': report }
+    normalized = []
+    for r in REPORT_STORE:
+        normalized.append({"data": r, "filename": r.get("target", "")})
+    return render_template("reports.html", reports=normalized)
+
+
+# static files (optional helper)
+@app.route("/uploads/<path:filename>")
+def uploaded_file(filename):
+    return send_from_directory("./uploads", filename, as_attachment=True)
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Use 0.0.0.0 and port from env if provided by Render
+    port = int(os.getenv("PORT", 8000))
+    app.run(host="0.0.0.0", port=port, debug=True)
