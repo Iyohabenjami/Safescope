@@ -2,35 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Scan Result - SafeScope</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <title>IP Report - SafeScope</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0b1220; color: #e6eef8; font-family: Inter, system-ui; }
+    .glass { background: rgba(255,255,255,0.03); padding:18px; border-radius:12px; }
+  </style>
 </head>
-<body class="ui-bg">
-
-  <div class="container py-5">
-    <div class="panel-card p-4 mb-4">
-      <h3 class="page-title">{{ result.target }}</h3>
-      <p class="small text-light">Quick scan result</p>
+<body class="p-6">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-start">
+      <h1 class="text-2xl font-semibold">IP Report: {{ result.ip }}</h1>
+      <div>
+        {% set v = result.verdict or 'Unknown' %}
+        {% if 'Malicious' in v %}
+          <span style="background:rgba(239,68,68,0.12);color:#b91c1c;padding:6px 10px;border-radius:999px">Malicious</span>
+        {% elif 'Suspicious' in v %}
+          <span style="background:rgba(250,204,21,0.12);color:#b45309;padding:6px 10px;border-radius:999px">Suspicious</span>
+        {% elif 'Safe' in v %}
+          <span style="background:rgba(34,197,94,0.12);color:#16a34a;padding:6px 10px;border-radius:999px">Safe</span>
+        {% else %}
+          <span style="background:rgba(107,114,128,0.08);color:#374151;padding:6px 10px;border-radius:999px">Unknown</span>
+        {% endif %}
+      </div>
     </div>
 
-    <div class="panel-card p-4 mb-4">
-      <pre class="json-block">{{ result | tojson(indent=2) }}</pre>
+    <div class="mt-6 glass">
+      <h3 class="font-semibold">Summary</h3>
+      <p class="text-sm mt-2"><strong>Reverse DNS:</strong> {{ result.rev_dns or result.rev_dns_error }}</p>
+      <p class="text-sm"><strong>IP info:</strong> {{ result.ipinfo | tojson }}</p>
     </div>
 
-    <div class="d-grid gap-2">
-      <button class="btn main-btn" data-bs-toggle="modal" data-bs-target="#reportModal">Report</button>
-      <a class="btn btn-panel-outline" href="/">Back</a>
+    <div class="mt-4 flex gap-2">
+      <a href="/" class="px-4 py-2 rounded-md border">Back</a>
+      <button onclick="openReport()" class="px-4 py-2 rounded-md" style="background:#6c63ff;color:white">Report</button>
     </div>
   </div>
 
-  <script>
-    window.SAFE_SCOPE_REPORT_TARGET = "{{ result.target if result.target else (result.domain if result.domain else '') }}";
-    window.SAFE_SCOPE_REPORT_VERDICT = "safe";
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  {% include 'report_modal.html' %}
+<script>
+  function openReport(){
+    const body = { type: 'ip', target: '{{ result.ip }}', verdict: '{{ result.verdict or "Unknown" }}', raw: {{ result|tojson }} };
+    fetch('/report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()).then(j=>{
+      if(j.status === 'success') alert('Report submitted');
+      else alert('Failed to submit');
+    }).catch(()=>alert('Network error'));
+  }
+</script>
 </body>
 </html>
