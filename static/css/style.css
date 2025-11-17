@@ -1,82 +1,81 @@
 /* Base Layout */
 body {
-    background-color: #121212;
-    color: white;
-    font-family: Arial, sans-serif;
+  background-color: #0b1220;
+  color: #e6eef8;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
 /* Card Style */
 .card {
-    background-color: #1e1e1e;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
+  background-color: #1e1e1e;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-/* FORCE black text inside all inputs (Bootstrap override) */
-input,
-textarea,
-select,
-.form-control,
-.form-control:focus,
-.form-select,
-.form-select:focus {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border: 1px solid #ccc !important;
-    border-radius: 6px !important;
-    padding: 10px !important;
-    -webkit-text-fill-color: #000000 !important;  /* Safari + Chrome fix */
+/* Inputs & Textarea */
+input, textarea {
+  background-color: #1e1e1e;
+  color: #e6eef8;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px;
+  width: 100%;
 }
 
-/* Placeholder text */
 input::placeholder,
 textarea::placeholder {
-    color: #666 !important;
+  color: #666;
 }
 
 /* Autofill fix */
 input:-webkit-autofill,
 textarea:-webkit-autofill {
-    -webkit-text-fill-color: #000000 !important;
-    transition: background-color 9999s ease-in-out 0s !important;
+  -webkit-text-fill-color: #e6eef8 !important;
+  transition: background-color 9999s ease-in-out 0s !important;
 }
 
 /* Buttons */
-.btn-custom {
-    background-color: #6366f1;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    width: 100%;
-    border-radius: 6px;
-    font-weight: bold;
+.btn-accent {
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 10px;
 }
 
-.btn-custom:hover {
-    background-color: #4f46e5;
+/* Glass effect */
+.glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
 }
 
-/* Modal text */
-.modal-content {
-    background-color: #1e1e1e !important;
-    color: #ffffff !important;
+/* Chips */
+.chip-safe { background: rgba(34,197,94,0.12); color:#16a34a; }
+.chip-susp { background: rgba(250,204,21,0.12); color:#b45309; }
+.chip-mal { background: rgba(239,68,68,0.12); color:#b91c1c; }
+.chip-unknown { background: rgba(107,114,128,0.08); color:#374151; }
+
+/* JSON Pre */
+.json-pre {
+  background: rgba(0,0,0,0.35);
+  padding: 12px;
+  border-radius: 8px;
+  color: #e6eef8;
+  overflow: auto;
 }
 
-/* Modal form fields */
-.modal-content input,
-.modal-content textarea {
-    background-color: #ffffff !important;
-    color: #000000 !important;
+/* Modal backdrop */
+.modal-backdrop {
+  background: rgba(2,6,23,0.6);
 }
 
-/* Report list styling */
-.list-group-item {
-    background-color: #1e1e1e !important;
-    color: white !important;
-    border: 1px solid #333 !important;
-}
-
-.list-group-item:hover {
-    background-color: #2a2a2a !important;
+/* Card Shadow */
+.card-shadow {
+  box-shadow: 0 8px 30px rgba(2,6,23,0.5);
 }
