@@ -1,45 +1,31 @@
+:root {
+  --accent: #6c63ff;
+  --muted: #9aa0b4;
+  --bg: #0b1220;
+  --surface: rgba(255,255,255,0.03);
+  --text-color: #e6eef8;
+}
+
 /* Base Layout */
 body {
-  background-color: #0b1220;
-  color: #e6eef8;
-  font-family: Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-color);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
   margin: 0;
   padding: 0;
 }
 
-/* Card Style */
-.card {
-  background-color: #1e1e1e;
+/* Glass effect */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.04);
   border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-/* Inputs & Textarea */
-input, textarea {
-  background-color: #1e1e1e;
-  color: #e6eef8;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 10px;
-  width: 100%;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #666;
-}
-
-/* Autofill fix */
-input:-webkit-autofill,
-textarea:-webkit-autofill {
-  -webkit-text-fill-color: #e6eef8 !important;
-  transition: background-color 9999s ease-in-out 0s !important;
 }
 
 /* Buttons */
 .btn-accent {
-  background-color: #6c63ff;
+  background-color: var(--accent);
   color: white;
   border: none;
   cursor: pointer;
@@ -47,26 +33,59 @@ textarea:-webkit-autofill {
   padding: 10px;
 }
 
-/* Glass effect */
-.glass {
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.04);
+/* Cards */
+.card {
+  background-color: #16181b;
   border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-/* Chips */
-.chip-safe { background: rgba(34,197,94,0.12); color:#16a34a; }
-.chip-susp { background: rgba(250,204,21,0.12); color:#b45309; }
-.chip-mal { background: rgba(239,68,68,0.12); color:#b91c1c; }
-.chip-unknown { background: rgba(107,114,128,0.08); color:#374151; }
+/* Inputs & Textareas: dark background, readable text */
+input, textarea {
+  background-color: #1e2228;
+  color: var(--text-color);
+  border: 1px solid #2b2f36;
+  border-radius: 6px;
+  padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-/* JSON Pre */
+/* Placeholder */
+input::placeholder,
+textarea::placeholder {
+  color: #8891a0;
+}
+
+/* Autofill fix (chrome) */
+input:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-color) !important;
+  -webkit-box-shadow: 0 0 0 1000px #1e2228 inset !important;
+  box-shadow: 0 0 0 1000px #1e2228 inset !important;
+  transition: background-color 9999s ease-in-out 0s !important;
+}
+
+/* Loading spinner helper */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Chips for verdict */
+.chip-safe { background: rgba(34,197,94,0.12); color:#16a34a; padding:6px 8px; border-radius:8px; font-weight:600; }
+.chip-susp { background: rgba(250,204,21,0.12); color:#b45309; padding:6px 8px; border-radius:8px; font-weight:600; }
+.chip-mal  { background: rgba(239,68,68,0.12); color:#b91c1c; padding:6px 8px; border-radius:8px; font-weight:600; }
+.chip-unk  { background: rgba(107,114,128,0.08); color:#94a3b8; padding:6px 8px; border-radius:8px; font-weight:600; }
+
 .json-pre {
   background: rgba(0,0,0,0.35);
   padding: 12px;
   border-radius: 8px;
-  color: #e6eef8;
+  color: var(--text-color);
   overflow: auto;
 }
 
@@ -75,7 +94,13 @@ textarea:-webkit-autofill {
   background: rgba(2,6,23,0.6);
 }
 
-/* Card Shadow */
+/* Card shadow */
 .card-shadow {
-  box-shadow: 0 8px 30px rgba(2,6,23,0.5);
+  box-shadow: 0 12px 30px rgba(2,6,23,0.6);
 }
+
+/* Result panel */
+#result-panel { display: block; }
+
+/* utility */
+.hidden { display: none !important; }
