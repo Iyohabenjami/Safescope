@@ -1,163 +1,342 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SafeScope — Threat Intelligence Dashboard</title>
+import os
+import json
+import hashlib
+import datetime
+from collections.abc import Mapping, Iterable
 
-  <!-- Tailwind CDN (optional for utilities used in markup) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, send_from_directory
+from dotenv import load_dotenv
+import vt
+import whois
+import dns.resolver
+import requests
+import socket
 
-  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
-</head>
+load_dotenv()
+VT_API_KEY = os.getenv("VT_API_KEY")
 
-<body class="min-h-screen flex flex-col">
+app = Flask(__name__, static_folder="static", template_folder="templates")
+app.secret_key = os.getenv("FLASK_SECRET", "change-this-secret")
 
-  <!-- Header -->
-  <header class="fixed top-0 left-0 right-0 h-16 glass z-50 flex items-center justify-between px-6">
-    <div class="flex items-center gap-3">
-      <i class="ri-shield-fill text-2xl" style="color:var(--accent)"></i>
-      <div>
-        <div class="text-lg font-semibold">SafeScope</div>
-        <div class="text-xs text-[var(--muted)]">Threat Intelligence Dashboard</div>
-      </div>
-    </div>
-  </header>
 
-  <!-- Hero -->
-  <section class="pt-20 pb-12 relative overflow-hidden">
-    <div class="max-w-5xl mx-auto text-center px-4">
-      <h1 class="text-4xl md:text-5xl font-extrabold mb-2">Threat Intelligence Dashboard</h1>
-      <p class="text-md text-[var(--muted)]">VirusTotal · WHOIS · DNS · IP Intelligence</p>
-    </div>
-  </section>
+def vt_client():
+    if not VT_API_KEY:
+        return None
+    try:
+        return vt.Client(VT_API_KEY)
+    except Exception:
+        return None
 
-  <!-- Main -->
-  <main class="flex-1 -mt-6 px-4 md:px-8 lg:px-12">
-    <div class="max-w-6xl mx-auto">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-        <!-- File Scan -->
-        <div class="glass rounded-xl p-6 card-shadow">
-          <div class="flex items-center mb-4">
-            <i class="ri-file-shield-2-line text-3xl" style="color:var(--accent)"></i>
-            <h3 class="ml-3 text-lg font-semibold">File Scan</h3>
-          </div>
+def safe_serialize(obj):
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
 
-          <form id="file-form" onsubmit="event.preventDefault(); scanFile();">
-            <input type="file" id="file-input" class="mb-3 w-full" />
-            <button id="file-scan-btn" class="btn-accent w-full py-2 rounded-md" type="button" onclick="scanFile()">Scan File</button>
-          </form>
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
 
-          <div id="file-loading" class="hidden mt-4 flex items-center gap-3">
-            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
-            <div class="text-sm text-[var(--muted)]">Processing request...</div>
-          </div>
+    if isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode("utf-8", errors="replace")
+        except Exception:
+            return str(obj)
 
-          <div id="file-results" class="mt-4 hidden"></div>
-        </div>
+    if isinstance(obj, Mapping):
+        out = {}
+        for k, v in obj.items():
+            try:
+                out[str(k)] = safe_serialize(v)
+            except Exception:
+                out[str(k)] = str(v)
+        return out
 
-        <!-- Domain Check -->
-        <div class="glass rounded-xl p-6 card-shadow">
-          <div class="flex items-center mb-4">
-            <i class="ri-global-line text-3xl" style="color:var(--accent)"></i>
-            <h3 class="ml-3 text-lg font-semibold">Domain Check</h3>
-          </div>
+    if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, bytearray)):
+        return [safe_serialize(i) for i in obj]
 
-          <div>
-            <input id="domain-input" type="text" placeholder="example.com" class="mb-3 w-full p-3 rounded-md" />
-            <button id="domain-check-btn" class="btn-accent w-full py-2 rounded-md" onclick="checkDomain()">Check Domain</button>
-          </div>
+    if hasattr(obj, "to_json"):
+        try:
+            return safe_serialize(json.loads(obj.to_json()))
+        except Exception:
+            pass
 
-          <div id="domain-loading" class="hidden mt-4 flex items-center gap-3">
-            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
-            <div class="text-sm text-[var(--muted)]">Processing request...</div>
-          </div>
+    if hasattr(obj, "to_dict"):
+        try:
+            return safe_serialize(obj.to_dict())
+        except Exception:
+            pass
 
-          <div id="domain-results" class="mt-4 hidden"></div>
-        </div>
+    try:
+        return str(obj)
+    except Exception:
+        return repr(obj)
 
-        <!-- IP Check -->
-        <div class="glass rounded-xl p-6 card-shadow">
-          <div class="flex items-center mb-4">
-            <i class="ri-map-pin-line text-3xl" style="color:var(--accent)"></i>
-            <h3 class="ml-3 text-lg font-semibold">IP Check</h3>
-          </div>
 
-          <div>
-            <input id="ip-input" type="text" placeholder="8.8.8.8" class="mb-3 w-full p-3 rounded-md" />
-            <button id="ip-check-btn" class="btn-accent w-full py-2 rounded-md" onclick="checkIP()">Check IP</button>
-          </div>
+def client_wants_json():
+    accept = request.headers.get("Accept", "")
+    return request.is_json or "application/json" in accept.lower()
 
-          <div id="ip-loading" class="hidden mt-4 flex items-center gap-3">
-            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
-            <div class="text-sm text-[var(--muted)]">Processing request...</div>
-          </div>
 
-          <div id="ip-results" class="mt-4 hidden"></div>
-        </div>
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-      </div>
 
-      <!-- Result Panel -->
-      <div id="result-panel" class="mt-8 hidden">
-        <div class="flex justify-between items-start gap-4">
-          <div class="flex-1">
-            <div id="result-card" class="glass rounded-xl p-5 card-shadow"></div>
-          </div>
-          <div class="w-64">
-            <div class="glass rounded-xl p-4">
-              <h4 class="text-sm font-semibold mb-2">Actions</h4>
-              <button id="report-btn" class="w-full py-2 rounded-md btn-accent mb-2">Report</button>
-              <a href="/" class="block text-center py-2 rounded-md border">Back to Dashboard</a>
-            </div>
-          </div>
-        </div>
+# ============================
+# Scan File
+# ============================
+@app.route("/scan-file", methods=["POST"])
+def scan_file():
+    f = request.files.get("file")
+    if not f or f.filename == "":
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No file selected"}), 400
+        flash("No file selected", "warning")
+        return redirect(url_for("index"))
 
-        <div class="mt-6">
-          <h5 class="text-sm font-semibold mb-2">Raw (for debugging only)</h5>
-          <pre id="raw-json" class="json-pre hidden"></pre>
-        </div>
-      </div>
+    os.makedirs("./uploads", exist_ok=True)
+    safe_filename = f.filename.replace("/", "_").replace("..", "_")
+    path = os.path.join("./uploads", safe_filename)
+    f.save(path)
 
-      <footer class="mt-12 text-center text-sm text-[var(--muted)]">
-        <p>© 2025 SafeScope — Security Intelligence Toolkit</p>
-      </footer>
-    </div>
-  </main>
+    try:
+        size = os.path.getsize(path)
+    except Exception:
+        size = None
 
-  <!-- REPORT MODAL -->
-  <div id="report-modal-backdrop" class="fixed inset-0 hidden items-center justify-center z-60">
-    <div class="modal-backdrop absolute inset-0"></div>
-    <div class="relative z-70 w-full max-w-lg mx-auto">
-      <div class="glass rounded-xl p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold">Submit Report</h3>
-          <button onclick="closeReportModal()" class="text-xl">✕</button>
-        </div>
-        <div class="space-y-3">
-          <label class="text-sm">Report Type</label>
-          <input id="modal-type" class="w-full p-2 rounded-md" />
+    md5 = ""
+    try:
+        h = hashlib.md5()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(8192), b""):
+                h.update(chunk)
+        md5 = h.hexdigest()
+    except Exception:
+        md5 = ""
 
-          <label class="text-sm">Target</label>
-          <input id="modal-target" class="w-full p-2 rounded-md" />
+    result = {
+        "filename": safe_filename,
+        "size": size,
+        "md5": md5,
+        "uploaded_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
 
-          <label class="text-sm">Verdict</label>
-          <input id="modal-verdict" class="w-full p-2 rounded-md" />
+    client = vt_client()
+    if client:
+        try:
+            with open(path, "rb") as fh:
+                analysis = client.scan_file(fh, wait_for_completion=True)
+            stats = getattr(analysis, "stats", None) or {}
+            result["vt_last_analysis_stats"] = safe_serialize(stats)
+            result["vt_status"] = "scanned"
+        except Exception as e:
+            result["vt_error"] = str(e)
+    else:
+        result["vt_error"] = "VT API key not configured."
 
-          <label class="text-sm">Notes (optional)</label>
-          <textarea id="modal-notes" class="w-full p-2 rounded-md" rows="3"></textarea>
+    # FILE VERDICT
+    stats = result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
 
-          <div class="flex gap-2">
-            <button class="btn-accent w-full py-2 rounded-md" onclick="submitReport()">Send</button>
-            <button class="w-full py-2 rounded-md border" onclick="closeReportModal()">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
 
-  <script src="/static/js/script.js"></script>
-</body>
-</html>
+    result["verdict"] = verdict
+    result["type"] = "file"
+
+    if client_wants_json():
+        return jsonify(result)
+
+    flash(f"Scan completed. File saved: {safe_filename}", "success")
+    return redirect(url_for("index"))
+
+
+# ============================
+# Check Domain
+# ============================
+@app.route("/check-domain", methods=["POST"])
+def check_domain():
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        domain = (data.get("domain") or "").strip()
+    else:
+        domain = request.form.get("domain", "").strip()
+
+    if not domain:
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No domain provided"}), 400
+        flash("No domain provided", "warning")
+        return redirect(url_for("index"))
+
+    result = {"domain": domain}
+
+    try:
+        w = whois.whois(domain)
+        result["whois"] = {
+            "domain_name": safe_serialize(w.get("domain_name")),
+            "registrar": safe_serialize(w.get("registrar")),
+            "creation_date": safe_serialize(w.get("creation_date")),
+        }
+    except Exception as e:
+        result["whois_error"] = str(e)
+
+    try:
+        answers = dns.resolver.resolve(domain, "A")
+        result["a_records"] = [r.to_text() for r in answers]
+    except Exception as e:
+        result["dns_error"] = str(e)
+
+    client = vt_client()
+    if client:
+        try:
+            resource = client.get_object(f"/domains/{domain}")
+            result["vt_last_analysis_stats"] = safe_serialize(getattr(resource, "last_analysis_stats", {}))
+            try:
+                la = getattr(resource, "last_analysis_results", None)
+                result["vt_last_analysis_results"] = safe_serialize(la) if la else {}
+            except Exception:
+                pass
+        except Exception as e:
+            result["vt_error"] = str(e)
+    else:
+        result["vt_error"] = "VT API key not configured."
+
+    safe_result = safe_serialize(result)
+
+    # DOMAIN VERDICT
+    stats = safe_result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
+
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
+
+    safe_result["verdict"] = verdict
+    safe_result["type"] = "domain"
+
+    if client_wants_json():
+        return jsonify(safe_result)
+
+    return render_template("domain_result.html", result=safe_result)
+
+
+# ============================
+# Check IP
+# ============================
+@app.route("/check-ip", methods=["POST"])
+def check_ip():
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        ip = (data.get("ip") or "").strip()
+    else:
+        ip = request.form.get("ip", "").strip()
+
+    if not ip:
+        if client_wants_json():
+            return jsonify({"status": "error", "message": "No ip provided"}), 400
+        flash("No IP provided", "warning")
+        return redirect(url_for("index"))
+
+    result = {"ip": ip}
+
+    try:
+        result["rev_dns"] = socket.gethostbyaddr(ip)[0]
+    except Exception as e:
+        result["rev_dns_error"] = str(e)
+
+    try:
+        r = requests.get(f"https://ipinfo.io/{ip}/json", timeout=8)
+        if r.ok:
+            result["ipinfo"] = r.json()
+        else:
+            result["ipinfo_error"] = r.text
+    except Exception as e:
+        result["ipinfo_error"] = str(e)
+
+    client = vt_client()
+    if client:
+        try:
+            resource = client.get_object(f"/ip_addresses/{ip}")
+            result["vt_last_analysis_stats"] = safe_serialize(getattr(resource, "last_analysis_stats", {}))
+        except Exception as e:
+            result["vt_error"] = str(e)
+    else:
+        result["vt_error"] = "VT API key not configured."
+
+    safe_result = safe_serialize(result)
+
+    # IP VERDICT
+    stats = safe_result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
+
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
+
+    safe_result["verdict"] = verdict
+    safe_result["type"] = "ip"
+
+    if client_wants_json():
+        return jsonify(safe_result)
+
+    return render_template("ip_result.html", result=safe_result)
+
+
+# ============================
+# REPORT SYSTEM
+# ============================
+REPORT_STORE = []
+
+
+@app.route("/report", methods=["POST"])
+def save_report():
+    data = request.get_json(silent=True) or request.json or {}
+    if not data:
+        return jsonify({"status": "error", "message": "No data received"}), 400
+
+    data["timestamp"] = datetime.datetime.utcnow().isoformat() + "Z"
+    REPORT_STORE.append(data)
+
+    return jsonify({"status": "success"})
+
+
+@app.route("/reports")
+def list_reports():
+    if client_wants_json():
+        return jsonify(REPORT_STORE)
+
+    normalized = []
+    for r in REPORT_STORE:
+        normalized.append({"data": r, "filename": r.get("target", "")})
+    return render_template("reports.html", reports=normalized)
+
+
+@app.route("/uploads/<path:filename>")
+def uploaded_file(filename):
+    return send_from_directory("./uploads", filename, as_attachment=True)
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    app.run(host="0.0.0.0", port=port, debug=True)
