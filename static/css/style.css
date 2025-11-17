@@ -1,86 +1,77 @@
-/* GLOBAL */
+/* Base Layout */
 body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(180deg, #dcd4f7 0%, #e9defd 40%, #efe8ff 100%);
-    color: #1a1a1a;
-}
-
-/* CENTERED PAGE LAYOUT */
-.wrapper {
-    max-width: 1100px;
-    margin: auto;
-    text-align: center;
-    padding-top: 60px;
-}
-
-/* TITLE */
-.hero-title {
-    font-size: 42px;
-    font-weight: 800;
+    background-color: #121212;
     color: white;
-    text-shadow: 0px 2px 20px rgba(0,0,0,0.25);
+    font-family: Arial, sans-serif;
 }
 
-.hero-sub {
-    margin-top: 5px;
-    color: #f1eaff;
-    opacity: 0.8;
-}
-
-/* CARD CONTAINERS */
+/* Card Style */
 .card {
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(25px);
-    border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-    border: 1px solid rgba(255,255,255,0.25);
-    color: white;
-}
-
-/* INPUTS */
-input[type="text"], input[type="file"], select, textarea {
-    background: rgba(255,255,255,0.35);
-    border: none;
-    padding: 10px;
+    background-color: #1e1e1e;
     border-radius: 10px;
-    width: 100%;
-    font-size: 16px;
-    color: #2b2b2b;
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-/* BUTTONS */
-.btn-main {
-    margin-top: 15px;
-    background: #6a30ff;
+/* Inputs: Fix text color and placeholder */
+input,
+textarea,
+select {
+    background-color: #ffffff;      /* Keep white box */
+    color: #000000 !important;      /* Black text typing */
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+/* Placeholder stays visible */
+input::placeholder,
+textarea::placeholder {
+    color: #666666;
+}
+
+/* Autofilled text (Chrome yellow fix) */
+input:-webkit-autofill,
+textarea:-webkit-autofill {
+    -webkit-text-fill-color: #000000 !important;  /* Black autofill text */
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Buttons */
+.btn-custom {
+    background-color: #ff9d00;
+    color: #121212;
     border: none;
-    padding: 12px;
-    border-radius: 12px;
-    color: white;
+    padding: 12px 20px;
     width: 100%;
-    font-weight: 700;
-    transition: 0.2s;
+    border-radius: 6px;
+    font-weight: bold;
 }
 
-.btn-main:hover {
-    background: #521edb;
+.btn-custom:hover {
+    background-color: #ffa722;
 }
 
-/* GRID FIX */
-.grid-3 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 25px;
-    margin-top: 40px;
+/* Modal text color fix */
+.modal-content {
+    background-color: #1e1e1e;
+    color: #ffffff;
 }
 
-/* FOOTER */
-footer {
-    margin-top: 50px;
-    text-align: center;
-    color: #eee;
-    opacity: 0.7;
-    font-size: 14px;
+/* Modal form fields */
+.modal-content input,
+.modal-content textarea {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
+/* Report list styling */
+.list-group-item {
+    background-color: #1e1e1e;
+    color: white;
+    border: 1px solid #333;
+}
+
+.list-group-item:hover {
+    background-color: #2a2a2a;
 }
