@@ -2,59 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Domain Report</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <title>Domain Report - SafeScope</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0b1220; color: #e6eef8; font-family: Inter, system-ui; }
+    .glass { background: rgba(255,255,255,0.03); padding:18px; border-radius:12px; }
+    .chip { padding:6px 10px; border-radius:999px; display:inline-block; }
+  </style>
 </head>
-<body class="ui-bg">
-
-  <div class="container py-5">
-    <div class="panel-card p-4 mb-4">
-      <h2 class="page-title fw-bold">{{ result.domain }}</h2>
-      <p class="small text-light">Domain check · VirusTotal & WHOIS</p>
+<body class="p-6">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-start">
+      <h1 class="text-2xl font-semibold">Domain Report: {{ result.domain }}</h1>
+      <div>
+        {% set v = result.verdict or 'Unknown' %}
+        {% if 'Malicious' in v %}
+          <span class="chip" style="background:rgba(239,68,68,0.12);color:#b91c1c">Malicious</span>
+        {% elif 'Suspicious' in v %}
+          <span class="chip" style="background:rgba(250,204,21,0.12);color:#b45309">Suspicious</span>
+        {% elif 'Safe' in v %}
+          <span class="chip" style="background:rgba(34,197,94,0.12);color:#16a34a">Safe</span>
+        {% else %}
+          <span class="chip" style="background:rgba(107,114,128,0.08);color:#374151">Unknown</span>
+        {% endif %}
+      </div>
     </div>
 
-    {% if result.vt_last_analysis_stats.malicious > 0 %}
-      <div class="alert-modern alert-danger-modern"> <i class="bi bi-exclamation-triangle-fill"></i> Dangerous — Malicious indicators found</div>
-    {% elif result.vt_last_analysis_stats.suspicious > 0 %}
-      <div class="alert-modern alert-warning-modern"> <i class="bi bi-shield-exclamation"></i> Suspicious — Needs further analysis</div>
-    {% else %}
-      <div class="alert-modern alert-success-modern"> <i class="bi bi-shield-check"></i> Safe — No malicious reports detected</div>
-    {% endif %}
-
-    <div class="panel-card p-4 mb-3">
-      <h5 class="text-white">VirusTotal Summary</h5>
-      <div class="small text-light">Harmless: {{ result.vt_last_analysis_stats.harmless }}</div>
-      <div class="small text-light">Malicious: {{ result.vt_last_analysis_stats.malicious }}</div>
-      <div class="small text-light">Suspicious: {{ result.vt_last_analysis_stats.suspicious }}</div>
+    <div class="mt-6 glass">
+      <h3 class="font-semibold">Summary</h3>
+      <p class="text-sm mt-2"><strong>Registrar:</strong> {{ result.whois.registrar }}</p>
+      <p class="text-sm"><strong>Created:</strong> {{ (result.whois.creation_date[0] if result.whois.creation_date is iterable else result.whois.creation_date) }}</p>
     </div>
 
-    <div class="panel-card p-4 mb-3">
-      <h5 class="text-white">WHOIS</h5>
-      <div class="small text-light">Registrar: {{ result.whois.registrar }}</div>
-      <div class="small text-light">Created: {% if result.whois.creation_date is iterable %}{{ result.whois.creation_date[0] }}{% else %}{{ result.whois.creation_date }}{% endif %}</div>
+    <div class="mt-4 glass">
+      <h3 class="font-semibold">A records</h3>
+      <pre class="text-sm bg-transparent p-2">{{ result.a_records | tojson(indent=2) }}</pre>
     </div>
 
-    <div class="panel-card p-4 mb-4">
-      <h5 class="text-white">DNS A Records</h5>
-      <pre class="json-block">{{ result.a_records | tojson(indent=2) }}</pre>
-    </div>
-
-    <div class="d-grid gap-2 mb-4">
-      <button class="btn main-btn" data-bs-toggle="modal" data-bs-target="#reportModal">Report</button>
-      <a class="btn btn-panel-outline" href="/">Back to Dashboard</a>
+    <div class="mt-4 flex gap-2">
+      <a href="/" class="px-4 py-2 rounded-md border">Back</a>
+      <button onclick="openReport()" class="px-4 py-2 rounded-md" style="background:#6c63ff;color:white">Report</button>
     </div>
   </div>
 
-  <script>
-    // expose page globals for modal script
-    window.SAFE_SCOPE_REPORT_TARGET = "{{ result.domain }}";
-    window.SAFE_SCOPE_REPORT_VERDICT = "{{ 'malicious' if result.vt_last_analysis_stats.malicious > 0 else ('suspicious' if result.vt_last_analysis_stats.suspicious > 0 else 'safe') }}";
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  {% include 'report_modal.html' %}
+<script>
+  function openReport(){
+    // open index modal by navigating back and pre-filling via query string (simple approach)
+    // Prefer AJAX report from here: POST /report
+    const body = { type: 'domain', target: '{{ result.domain }}', verdict: '{{ result.verdict or "Unknown" }}', raw: {{ result|tojson }} };
+    fetch('/report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()).then(j=>{
+      if(j.status === 'success') alert('Report submitted');
+      else alert('Failed to submit');
+    }).catch(()=>alert('Network error'));
+  }
+</script>
 </body>
 </html>
