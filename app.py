@@ -15,7 +15,7 @@ import socket
 load_dotenv()
 VT_API_KEY = os.getenv("VT_API_KEY")
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.getenv("FLASK_SECRET", "change-this-secret")
 
 
@@ -133,14 +133,11 @@ def scan_file():
     else:
         result["vt_error"] = "VT API key not configured."
 
-
-    # ---------------------
     # FILE VERDICT
-    # ---------------------
-    stats = result.get("vt_last_analysis_stats", {})
-    mal = stats.get("malicious", 0)
-    sus = stats.get("suspicious", 0)
-    harmless = stats.get("harmless", 0)
+    stats = result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
 
     if mal > 0:
         verdict = "Malicious"
@@ -153,8 +150,6 @@ def scan_file():
 
     result["verdict"] = verdict
     result["type"] = "file"
-    # ---------------------
-
 
     if client_wants_json():
         return jsonify(result)
@@ -215,14 +210,11 @@ def check_domain():
 
     safe_result = safe_serialize(result)
 
-
-    # ---------------------
     # DOMAIN VERDICT
-    # ---------------------
-    stats = safe_result.get("vt_last_analysis_stats", {})
-    mal = stats.get("malicious", 0)
-    sus = stats.get("suspicious", 0)
-    harmless = stats.get("harmless", 0)
+    stats = safe_result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
 
     if mal > 0:
         verdict = "Malicious"
@@ -235,8 +227,6 @@ def check_domain():
 
     safe_result["verdict"] = verdict
     safe_result["type"] = "domain"
-    # ---------------------
-
 
     if client_wants_json():
         return jsonify(safe_result)
@@ -289,14 +279,11 @@ def check_ip():
 
     safe_result = safe_serialize(result)
 
-
-    # ---------------------
     # IP VERDICT
-    # ---------------------
-    stats = safe_result.get("vt_last_analysis_stats", {})
-    mal = stats.get("malicious", 0)
-    sus = stats.get("suspicious", 0)
-    harmless = stats.get("harmless", 0)
+    stats = safe_result.get("vt_last_analysis_stats", {}) or {}
+    mal = stats.get("malicious", 0) if isinstance(stats, dict) else 0
+    sus = stats.get("suspicious", 0) if isinstance(stats, dict) else 0
+    harmless = stats.get("harmless", 0) if isinstance(stats, dict) else 0
 
     if mal > 0:
         verdict = "Malicious"
@@ -309,8 +296,6 @@ def check_ip():
 
     safe_result["verdict"] = verdict
     safe_result["type"] = "ip"
-    # ---------------------
-
 
     if client_wants_json():
         return jsonify(safe_result)
