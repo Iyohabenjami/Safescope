@@ -29,7 +29,6 @@ def vt_client():
 
 
 def safe_serialize(obj):
-    """Turn objects into JSON-serializable primitives."""
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
 
@@ -54,22 +53,15 @@ def safe_serialize(obj):
     if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, bytearray)):
         return [safe_serialize(i) for i in obj]
 
-    if hasattr(obj, "to_json") and callable(getattr(obj, "to_json")):
+    if hasattr(obj, "to_json"):
         try:
-            decoded = json.loads(obj.to_json())
-            return safe_serialize(decoded)
+            return safe_serialize(json.loads(obj.to_json()))
         except Exception:
             pass
 
-    if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+    if hasattr(obj, "to_dict"):
         try:
             return safe_serialize(obj.to_dict())
-        except Exception:
-            pass
-
-    if hasattr(obj, "items") and callable(getattr(obj, "items")):
-        try:
-            return {str(k): safe_serialize(v) for k, v in obj.items()}
         except Exception:
             pass
 
@@ -80,8 +72,6 @@ def safe_serialize(obj):
 
 
 def client_wants_json():
-    """Return True if the incoming request expects JSON (fetch/ajax)."""
-    # request.is_json checks for application/json content-type
     accept = request.headers.get("Accept", "")
     return request.is_json or "application/json" in accept.lower()
 
@@ -91,13 +81,13 @@ def index():
     return render_template("index.html")
 
 
-# ---- Scan file ----
+# ============================
+# Scan File
+# ============================
 @app.route("/scan-file", methods=["POST"])
 def scan_file():
-    # Handle file upload from form or fetch(FormData)
     f = request.files.get("file")
     if not f or f.filename == "":
-        # If Ajax expects JSON, return JSON error
         if client_wants_json():
             return jsonify({"status": "error", "message": "No file selected"}), 400
         flash("No file selected", "warning")
@@ -108,7 +98,6 @@ def scan_file():
     path = os.path.join("./uploads", safe_filename)
     f.save(path)
 
-    # compute basic metadata
     try:
         size = os.path.getsize(path)
     except Exception:
@@ -134,10 +123,8 @@ def scan_file():
     client = vt_client()
     if client:
         try:
-            # open file again for vt client
             with open(path, "rb") as fh:
                 analysis = client.scan_file(fh, wait_for_completion=True)
-            # try to fetch some stats if available
             stats = getattr(analysis, "stats", None) or {}
             result["vt_last_analysis_stats"] = safe_serialize(stats)
             result["vt_status"] = "scanned"
@@ -146,7 +133,29 @@ def scan_file():
     else:
         result["vt_error"] = "VT API key not configured."
 
-    # Return JSON for AJAX clients; otherwise behave like before (flash + redirect)
+
+    # ---------------------
+    # FILE VERDICT
+    # ---------------------
+    stats = result.get("vt_last_analysis_stats", {})
+    mal = stats.get("malicious", 0)
+    sus = stats.get("suspicious", 0)
+    harmless = stats.get("harmless", 0)
+
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
+
+    result["verdict"] = verdict
+    result["type"] = "file"
+    # ---------------------
+
+
     if client_wants_json():
         return jsonify(result)
 
@@ -154,11 +163,11 @@ def scan_file():
     return redirect(url_for("index"))
 
 
-# ---- Check domain ----
+# ============================
+# Check Domain
+# ============================
 @app.route("/check-domain", methods=["POST"])
 def check_domain():
-    # Accept both form-data and JSON
-    data = None
     if request.is_json:
         data = request.get_json(silent=True) or {}
         domain = (data.get("domain") or "").strip()
@@ -194,7 +203,6 @@ def check_domain():
         try:
             resource = client.get_object(f"/domains/{domain}")
             result["vt_last_analysis_stats"] = safe_serialize(getattr(resource, "last_analysis_stats", {}))
-            # optionally add last_analysis_results summary (small)
             try:
                 la = getattr(resource, "last_analysis_results", None)
                 result["vt_last_analysis_results"] = safe_serialize(la) if la else {}
@@ -207,17 +215,40 @@ def check_domain():
 
     safe_result = safe_serialize(result)
 
+
+    # ---------------------
+    # DOMAIN VERDICT
+    # ---------------------
+    stats = safe_result.get("vt_last_analysis_stats", {})
+    mal = stats.get("malicious", 0)
+    sus = stats.get("suspicious", 0)
+    harmless = stats.get("harmless", 0)
+
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
+
+    safe_result["verdict"] = verdict
+    safe_result["type"] = "domain"
+    # ---------------------
+
+
     if client_wants_json():
         return jsonify(safe_result)
 
     return render_template("domain_result.html", result=safe_result)
 
 
-# ---- Check IP ----
+# ============================
+# Check IP
+# ============================
 @app.route("/check-ip", methods=["POST"])
 def check_ip():
-    # Accept both form-data and JSON
-    data = None
     if request.is_json:
         data = request.get_json(silent=True) or {}
         ip = (data.get("ip") or "").strip()
@@ -258,16 +289,39 @@ def check_ip():
 
     safe_result = safe_serialize(result)
 
+
+    # ---------------------
+    # IP VERDICT
+    # ---------------------
+    stats = safe_result.get("vt_last_analysis_stats", {})
+    mal = stats.get("malicious", 0)
+    sus = stats.get("suspicious", 0)
+    harmless = stats.get("harmless", 0)
+
+    if mal > 0:
+        verdict = "Malicious"
+    elif sus > 0:
+        verdict = "Suspicious"
+    elif harmless > 0:
+        verdict = "Safe"
+    else:
+        verdict = "Unknown"
+
+    safe_result["verdict"] = verdict
+    safe_result["type"] = "ip"
+    # ---------------------
+
+
     if client_wants_json():
         return jsonify(safe_result)
 
     return render_template("ip_result.html", result=safe_result)
 
 
-# ======================
-# REPORT SYSTEM (IN-MEMORY)
-# ======================
-REPORT_STORE = []  # All reports will live in RAM
+# ============================
+# REPORT SYSTEM
+# ============================
+REPORT_STORE = []
 
 
 @app.route("/report", methods=["POST"])
@@ -284,26 +338,20 @@ def save_report():
 
 @app.route("/reports")
 def list_reports():
-    # If someone visits /reports via fetch expecting JSON, return JSON
     if client_wants_json():
         return jsonify(REPORT_STORE)
-    # otherwise render template
-    # convert REPORT_STORE entries into the shape expected by reports.html if necessary
-    # the template expects report objects with 'data' and optional 'filename', but earlier implementation used different shapes
-    # We'll normalize simple shape: { 'data': report }
+
     normalized = []
     for r in REPORT_STORE:
         normalized.append({"data": r, "filename": r.get("target", "")})
     return render_template("reports.html", reports=normalized)
 
 
-# static files (optional helper)
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     return send_from_directory("./uploads", filename, as_attachment=True)
 
 
 if __name__ == "__main__":
-    # Use 0.0.0.0 and port from env if provided by Render
     port = int(os.getenv("PORT", 8000))
     app.run(host="0.0.0.0", port=port, debug=True)
