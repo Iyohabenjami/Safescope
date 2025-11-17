@@ -13,34 +13,39 @@ body {
     margin-bottom: 20px;
 }
 
-/* Inputs: Fix text color and placeholder */
+/* FORCE black text inside all inputs (Bootstrap override) */
 input,
 textarea,
-select {
-    background-color: #ffffff;      /* Keep white box */
-    color: #000000 !important;      /* Black text typing */
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    padding: 10px;
+select,
+.form-control,
+.form-control:focus,
+.form-select,
+.form-select:focus {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    padding: 10px !important;
+    -webkit-text-fill-color: #000000 !important;  /* Safari + Chrome fix */
 }
 
-/* Placeholder stays visible */
+/* Placeholder text */
 input::placeholder,
 textarea::placeholder {
-    color: #666666;
+    color: #666 !important;
 }
 
-/* Autofilled text (Chrome yellow fix) */
+/* Autofill fix */
 input:-webkit-autofill,
 textarea:-webkit-autofill {
-    -webkit-text-fill-color: #000000 !important;  /* Black autofill text */
-    transition: background-color 9999s ease-in-out 0s;
+    -webkit-text-fill-color: #000000 !important;
+    transition: background-color 9999s ease-in-out 0s !important;
 }
 
 /* Buttons */
 .btn-custom {
-    background-color: #ff9d00;
-    color: #121212;
+    background-color: #6366f1;
+    color: white;
     border: none;
     padding: 12px 20px;
     width: 100%;
@@ -49,13 +54,13 @@ textarea:-webkit-autofill {
 }
 
 .btn-custom:hover {
-    background-color: #ffa722;
+    background-color: #4f46e5;
 }
 
-/* Modal text color fix */
+/* Modal text */
 .modal-content {
-    background-color: #1e1e1e;
-    color: #ffffff;
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
 }
 
 /* Modal form fields */
@@ -67,11 +72,11 @@ textarea:-webkit-autofill {
 
 /* Report list styling */
 .list-group-item {
-    background-color: #1e1e1e;
-    color: white;
-    border: 1px solid #333;
+    background-color: #1e1e1e !important;
+    color: white !important;
+    border: 1px solid #333 !important;
 }
 
 .list-group-item:hover {
-    background-color: #2a2a2a;
+    background-color: #2a2a2a !important;
 }
