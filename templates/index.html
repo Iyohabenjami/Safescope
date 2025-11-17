@@ -1,173 +1,423 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>SafeScope</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SafeScope — Threat Intelligence Dashboard</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+
   <style>
-    body { background: #f5f7fa; }
-    .card { border-radius: 12px; }
-    pre { background: #1e1e1e; color: #fff; padding: 10px; border-radius: 8px; }
+    :root {
+      --accent: #6c63ff;
+      --muted: #9aa0b4;
+    }
+    [data-theme="light"] {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      color: #111827;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1220;
+      --surface: rgba(255,255,255,0.03);
+      color: #e6eef8;
+    }
+
+    body { background: var(--bg); font-family: Inter, system-ui, -apple-system, sans-serif; }
+    .glass { background: var(--surface); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.04); }
+    .btn-accent { background: var(--accent); color: white; }
+    .chip-safe { background: rgba(34,197,94,0.12); color:#16a34a; }
+    .chip-susp { background: rgba(250,204,21,0.12); color:#b45309; }
+    .chip-mal { background: rgba(239,68,68,0.12); color:#b91c1c; }
+    .chip-unknown { background: rgba(107,114,128,0.08); color:#374151; }
+    .json-pre { background: rgba(0,0,0,0.35); padding:12px; border-radius:8px; color:#e6eef8; overflow:auto; }
+    .modal-backdrop { background: rgba(2,6,23,0.6); }
+    .card-shadow { box-shadow: 0 8px 30px rgba(2,6,23,0.5); }
   </style>
 </head>
+<body data-theme="dark" class="min-h-screen flex flex-col">
 
-<body class="p-4">
-  <div class="container">
-
-    <h1 class="fw-bold text-center mb-3">SafeScope</h1>
-    <h5 class="text-center mb-4">Threat Intelligence Dashboard<br>VirusTotal · WHOIS · DNS · IP Intelligence</h5>
-
-    <div class="row g-4">
-
-      <!-- FILE SCAN -->
-      <div class="col-md-4">
-        <div class="card p-3 shadow">
-          <h5>File Scan</h5>
-          <input type="file" id="fileInput" class="form-control mb-2">
-          <button class="btn btn-primary w-100" onclick="scanFile()">Scan File</button>
-        </div>
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 h-16 glass z-50 flex items-center justify-between px-6">
+    <div class="flex items-center gap-3">
+      <i class="ri-shield-fill text-2xl" style="color:var(--accent)"></i>
+      <div>
+        <div class="text-lg font-semibold">SafeScope</div>
+        <div class="text-xs text-[var(--muted)]">Threat Intelligence Dashboard</div>
       </div>
-
-      <!-- DOMAIN CHECK -->
-      <div class="col-md-4">
-        <div class="card p-3 shadow">
-          <h5>Domain Check</h5>
-          <input id="domainInput" class="form-control mb-2" placeholder="example.com">
-          <button class="btn btn-primary w-100" onclick="checkDomain()">Check Domain</button>
-        </div>
-      </div>
-
-      <!-- IP CHECK -->
-      <div class="col-md-4">
-        <div class="card p-3 shadow">
-          <h5>IP Check</h5>
-          <input id="ipInput" class="form-control mb-2" placeholder="8.8.8.8">
-          <button class="btn btn-primary w-100" onclick="checkIP()">Check IP</button>
-        </div>
-      </div>
-
     </div>
 
-    <!-- RESULTS -->
-    <div id="resultBox" class="mt-5" style="display:none;">
-      <h3>Details</h3>
-      <div class="card p-3 shadow mb-3">
-        <p><strong>Verdict:</strong> <span id="verdictText"></span></p>
-        <p><strong>Target:</strong> <span id="targetText"></span></p>
+    <div class="flex items-center gap-3">
+      <button id="theme-toggle" class="p-2 rounded-md glass" title="Toggle theme">
+        <i id="theme-icon" class="ri-moon-line text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="pt-20 pb-12 relative overflow-hidden">
+    <div class="max-w-5xl mx-auto text-center px-4">
+      <h1 class="text-4xl md:text-5xl font-extrabold mb-2">Threat Intelligence Dashboard</h1>
+      <p class="text-md text-[var(--muted)]">VirusTotal · WHOIS · DNS · IP Intelligence</p>
+    </div>
+  </section>
+
+  <!-- Main -->
+  <main class="flex-1 -mt-6 px-4 md:px-8 lg:px-12">
+    <div class="max-w-6xl mx-auto">
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- File Scan -->
+        <div class="glass rounded-xl p-6 card-shadow">
+          <div class="flex items-center mb-4">
+            <i class="ri-file-shield-2-line text-3xl" style="color:var(--accent)"></i>
+            <h3 class="ml-3 text-lg font-semibold">File Scan</h3>
+          </div>
+
+          <form id="file-form" onsubmit="event.preventDefault(); scanFile();">
+            <input type="file" id="file-input" class="mb-3 w-full" />
+            <button class="btn-accent w-full py-2 rounded-md" type="button" onclick="scanFile()">Scan File</button>
+          </form>
+
+          <div id="file-loading" class="hidden mt-4 flex items-center gap-3">
+            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
+            <div class="text-sm text-[var(--muted)]">Processing request...</div>
+          </div>
+
+          <div id="file-results" class="mt-4 hidden"></div>
+        </div>
+
+        <!-- Domain Check -->
+        <div class="glass rounded-xl p-6 card-shadow">
+          <div class="flex items-center mb-4">
+            <i class="ri-global-line text-3xl" style="color:var(--accent)"></i>
+            <h3 class="ml-3 text-lg font-semibold">Domain Check</h3>
+          </div>
+
+          <div>
+            <input id="domain-input" type="text" placeholder="example.com" class="input-field mb-3 w-full p-3 rounded-md" />
+            <button class="btn-accent w-full py-2 rounded-md" onclick="checkDomain()">Check Domain</button>
+          </div>
+
+          <div id="domain-loading" class="hidden mt-4 flex items-center gap-3">
+            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
+            <div class="text-sm text-[var(--muted)]">Processing request...</div>
+          </div>
+
+          <div id="domain-results" class="mt-4 hidden"></div>
+        </div>
+
+        <!-- IP Check -->
+        <div class="glass rounded-xl p-6 card-shadow">
+          <div class="flex items-center mb-4">
+            <i class="ri-map-pin-line text-3xl" style="color:var(--accent)"></i>
+            <h3 class="ml-3 text-lg font-semibold">IP Check</h3>
+          </div>
+
+          <div>
+            <input id="ip-input" type="text" placeholder="8.8.8.8" class="input-field mb-3 w-full p-3 rounded-md" />
+            <button class="btn-accent w-full py-2 rounded-md" onclick="checkIP()">Check IP</button>
+          </div>
+
+          <div id="ip-loading" class="hidden mt-4 flex items-center gap-3">
+            <div class="w-9 h-9 border-4 border-[rgba(108,99,255,0.25)] border-t-[var(--accent)] rounded-full animate-spin"></div>
+            <div class="text-sm text-[var(--muted)]">Processing request...</div>
+          </div>
+
+          <div id="ip-results" class="mt-4 hidden"></div>
+        </div>
+
+      </div> <!-- grid -->
+
+      <!-- Result panel (reusable) -->
+      <div id="result-panel" class="mt-8 hidden">
+        <div class="flex justify-between items-start gap-4">
+          <div class="flex-1">
+            <div id="result-card" class="glass rounded-xl p-5 card-shadow">
+              <!-- populated by JS -->
+            </div>
+          </div>
+
+          <div class="w-64">
+            <div class="glass rounded-xl p-4">
+              <h4 class="text-sm font-semibold mb-2">Actions</h4>
+              <button id="report-btn" class="w-full py-2 rounded-md btn-accent mb-2">Report</button>
+              <a href="/" class="block text-center py-2 rounded-md border">Back to Dashboard</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h5 class="text-sm font-semibold mb-2">Raw (for debugging only)</h5>
+          <pre id="raw-json" class="json-pre hidden"></pre>
+        </div>
       </div>
 
-      <h5>Raw JSON</h5>
-      <pre id="jsonOutput"></pre>
-
-      <button class="btn btn-success mt-3" onclick="openReport()">Report</button>
+      <footer class="mt-12 text-center text-sm text-[var(--muted)]">
+        <p>© 2025 SafeScope — Security Intelligence Toolkit</p>
+      </footer>
     </div>
+  </main>
 
-    <footer class="text-center mt-5">
-      © 2025 SafeScope — Security Intelligence Toolkit
-    </footer>
+  <!-- REPORT MODAL (Tailwind, pure JS) -->
+  <div id="report-modal-backdrop" class="fixed inset-0 hidden items-center justify-center z-60">
+    <div class="modal-backdrop absolute inset-0"></div>
+    <div class="relative z-70 w-full max-w-lg mx-auto">
+      <div class="glass rounded-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Submit Report</h3>
+          <button onclick="closeReportModal()" class="text-xl">✕</button>
+        </div>
+
+        <div class="space-y-3">
+          <label class="text-sm">Report Type</label>
+          <input id="modal-type" class="w-full p-2 rounded-md" />
+
+          <label class="text-sm">Target</label>
+          <input id="modal-target" class="w-full p-2 rounded-md" />
+
+          <label class="text-sm">Verdict</label>
+          <input id="modal-verdict" class="w-full p-2 rounded-md" />
+
+          <label class="text-sm">Notes (optional)</label>
+          <textarea id="modal-notes" class="w-full p-2 rounded-md" rows="3"></textarea>
+
+          <div class="flex gap-2">
+            <button class="btn-accent w-full py-2 rounded-md" onclick="submitReport()">Send</button>
+            <button class="w-full py-2 rounded-md border" onclick="closeReportModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-
-
-  <!-- REPORT MODAL -->
-  <div class="modal fade" id="reportModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content p-3">
-
-        <h5>Submit Report</h5>
-
-        <label class="mt-2">Report Type</label>
-        <input id="repType" class="form-control">
-
-        <label class="mt-2">Target</label>
-        <input id="repTarget" class="form-control">
-
-        <label class="mt-2">Verdict</label>
-        <input id="repVerdict" class="form-control">
-
-        <label class="mt-2">Notes (optional)</label>
-        <textarea id="repNotes" class="form-control"></textarea>
-
-        <button class="btn btn-primary w-100 mt-3" onclick="submitReport()">Send</button>
-
-      </div>
-    </div>
-  </div>
-
 
 <script>
-let latestResult = null;
+  // theme toggle
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  themeToggle?.addEventListener('click', () => {
+    const body = document.body;
+    const current = body.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', next);
+    themeIcon.className = next === 'dark' ? 'ri-moon-line text-lg' : 'ri-sun-line text-lg';
+  });
 
-// ------------------- FILE -------------------
-async function scanFile(){
-  let f = document.getElementById("fileInput").files[0];
-  if(!f){ alert("No file selected"); return; }
+  // modal helpers
+  function openReportModal() {
+    document.getElementById('report-modal-backdrop').classList.remove('hidden');
+  }
+  function closeReportModal() {
+    document.getElementById('report-modal-backdrop').classList.add('hidden');
+  }
 
-  let form = new FormData();
-  form.append("file", f);
+  // state
+  let latest = null;
 
-  let r = await axios.post("/scan-file", form);
-  showResult(r.data, "file");
-}
+  function verdictChip(verdict) {
+    if(!verdict) return '';
+    const v = verdict.toLowerCase();
+    if (v.includes('malic')) return '<span class="px-3 py-1 rounded-full chip-mal text-sm">Malicious</span>';
+    if (v.includes('susp')) return '<span class="px-3 py-1 rounded-full chip-susp text-sm">Suspicious</span>';
+    if (v.includes('safe')) return '<span class="px-3 py-1 rounded-full chip-safe text-sm">Safe</span>';
+    return '<span class="px-3 py-1 rounded-full chip-unknown text-sm">Unknown</span>';
+  }
 
-// ------------------- DOMAIN -------------------
-async function checkDomain(){
-  let dom = document.getElementById("domainInput").value.trim();
-  if(!dom){ alert("Enter domain"); return; }
+  function renderResultCard(data, type) {
+    latest = { data, type };
 
-  let r = await axios.post("/check-domain", { domain: dom });
-  showResult(r.data, "domain");
-}
+    const titleMap = {
+      file: 'File scan result',
+      domain: 'Domain report',
+      ip: 'IP report'
+    };
+    const title = titleMap[type] || 'Result';
 
-// ------------------- IP -------------------
-async function checkIP(){
-  let ip = document.getElementById("ipInput").value.trim();
-  if(!ip){ alert("Enter IP"); return; }
+    const meta = (type === 'file') ?
+      `<div><strong>File</strong>: ${escapeHtml(data.filename || '')}</div>
+       <div><strong>Size</strong>: ${data.size ? (data.size/1024).toFixed(2)+' KB' : 'N/A'}</div>` :
+      (type === 'domain') ?
+      `<div><strong>Domain</strong>: ${escapeHtml(data.domain || '')}</div>
+       <div><strong>Registrar</strong>: ${escapeHtml(data.whois?.registrar || data.registrar || 'N/A')}</div>
+       <div><strong>Created</strong>: ${Array.isArray(data.whois?.creation_date) ? (data.whois.creation_date[0] || 'N/A') : (data.whois?.creation_date || data.creation_date || 'N/A')}</div>` :
+      `<div><strong>IP</strong>: ${escapeHtml(data.ip || '')}</div>
+       <div><strong>Reverse DNS</strong>: ${escapeHtml(data.rev_dns || 'N/A')}</div>
+       <div><strong>IPinfo</strong>: ${escapeHtml(data.ipinfo?.org || 'N/A')}</div>`;
 
-  let r = await axios.post("/check-ip", { ip: ip });
-  showResult(r.data, "ip");
-}
+    const verdict = data.verdict || 'Unknown';
 
-// ------------------- DISPLAY -------------------
-function showResult(data, type){
-  latestResult = data;
+    const card = `
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-xl font-semibold">${title}</h3>
+          <div class="text-sm text-[var(--muted)] mt-1">Source: VirusTotal · WHOIS · DNS</div>
+        </div>
+        <div>${verdictChip(verdict)}</div>
+      </div>
 
-  document.getElementById("resultBox").style.display = "block";
+      <div class="mt-4 text-sm space-y-2">${meta}</div>
 
-  document.getElementById("targetText").innerText = data.domain || data.ip || data.filename;
-  document.getElementById("verdictText").innerText = data.verdict;
+      <div class="mt-4">
+        <h4 class="text-sm font-semibold">Analysis summary</h4>
+        <div class="mt-2 text-sm">${renderAnalysisSummary(data)}</div>
+      </div>
+    `;
 
-  document.getElementById("jsonOutput").innerText = JSON.stringify(data, null, 2);
-}
+    document.getElementById('result-card').innerHTML = card;
+    document.getElementById('result-panel').classList.remove('hidden');
+    document.getElementById('raw-json').classList.add('hidden');
 
-// ------------------- REPORT -------------------
-function openReport(){
-  if(!latestResult){ return; }
+    // prepare report modal fields
+    document.getElementById('modal-type').value = type;
+    document.getElementById('modal-target').value = type === 'domain' ? (data.domain || '') : (type === 'ip' ? (data.ip || '') : (data.filename || ''));
+    document.getElementById('modal-verdict').value = verdict;
 
-  document.getElementById("repType").value = latestResult.type || "analysis";
-  document.getElementById("repTarget").value = latestResult.domain || latestResult.ip || latestResult.filename;
-  document.getElementById("repVerdict").value = latestResult.verdict;
+    // report button handler
+    document.getElementById('report-btn').onclick = openReportModal;
+  }
 
-  new bootstrap.Modal(document.getElementById("reportModal")).show();
-}
+  function renderAnalysisSummary(data) {
+    // pick small summary: vt_last_analysis_stats if present
+    const s = data.vt_last_analysis_stats || {};
+    if (Object.keys(s).length === 0) {
+      // fallback: some other info
+      return '<span class="text-[var(--muted)]">No VirusTotal summary available.</span>';
+    }
+    return `<div class="grid grid-cols-3 gap-2 text-sm">
+      <div><strong>Harmless</strong><div class="text-[var(--muted)]">${s.harmless ?? 0}</div></div>
+      <div><strong>Malicious</strong><div class="text-[var(--muted)]">${s.malicious ?? 0}</div></div>
+      <div><strong>Suspicious</strong><div class="text-[var(--muted)]">${s.suspicious ?? 0}</div></div>
+    </div>`;
+  }
 
-async function submitReport(){
-  let body = {
-    type: document.getElementById("repType").value,
-    target: document.getElementById("repTarget").value,
-    verdict: document.getElementById("repVerdict").value,
-    notes: document.getElementById("repNotes").value,
-    raw: latestResult
-  };
+  function escapeHtml(s) {
+    if (!s && s !== 0) return '';
+    return String(s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
 
-  await axios.post("/report", body);
+  // ===== API calls =====
+  async function scanFile() {
+    const input = document.getElementById('file-input');
+    const file = input.files?.[0];
+    if (!file) { alert('Select a file first'); return; }
 
-  alert("Report submitted");
-  location.reload();
-}
+    document.getElementById('file-loading').classList.remove('hidden');
+    document.getElementById('file-results').classList.add('hidden');
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const resp = await fetch('/scan-file', { method: 'POST', body: fd });
+      // Try parse JSON first
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await resp.json();
+        renderResultCard(data, 'file');
+      } else {
+        // fallback: server returned HTML view — open it (server-side rendering route)
+        const html = await resp.text();
+        document.open(); document.write(html); document.close();
+        return;
+      }
+    } catch (err) {
+      alert('Network error while scanning file');
+    } finally {
+      document.getElementById('file-loading').classList.add('hidden');
+    }
+  }
+
+  async function checkDomain() {
+    const dom = document.getElementById('domain-input').value.trim();
+    if (!dom) { alert('Enter domain'); return; }
+
+    document.getElementById('domain-loading').classList.remove('hidden');
+    document.getElementById('domain-results').classList.add('hidden');
+
+    try {
+      const resp = await fetch('/check-domain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ domain: dom })
+      });
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await resp.json();
+        renderResultCard(data, 'domain');
+      } else {
+        const html = await resp.text();
+        document.open(); document.write(html); document.close();
+        return;
+      }
+    } catch (err) {
+      alert('Network error while checking domain');
+    } finally {
+      document.getElementById('domain-loading').classList.add('hidden');
+    }
+  }
+
+  async function checkIP() {
+    const ip = document.getElementById('ip-input').value.trim();
+    if (!ip) { alert('Enter IP'); return; }
+
+    document.getElementById('ip-loading').classList.remove('hidden');
+    document.getElementById('ip-results').classList.add('hidden');
+
+    try {
+      const resp = await fetch('/check-ip', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ ip: ip })
+      });
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await resp.json();
+        renderResultCard(data, 'ip');
+      } else {
+        const html = await resp.text();
+        document.open(); document.write(html); document.close();
+        return;
+      }
+
+    } catch (err) {
+      alert('Network error while checking IP');
+    } finally {
+      document.getElementById('ip-loading').classList.add('hidden');
+    }
+  }
+
+  // ===== Report submission =====
+  async function submitReport() {
+    const body = {
+      type: document.getElementById('modal-type').value,
+      target: document.getElementById('modal-target').value,
+      verdict: document.getElementById('modal-verdict').value,
+      notes: document.getElementById('modal-notes').value,
+      raw: latest?.data || {}
+    };
+
+    try {
+      const resp = await fetch('/report', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      const j = await resp.json();
+      if (j.status === 'success') {
+        closeReportModal();
+        alert('Report submitted');
+      } else {
+        alert('Failed to submit report');
+      }
+    } catch (err) {
+      alert('Network error submitting report');
+    }
+  }
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
