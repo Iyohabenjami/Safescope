@@ -5,104 +5,68 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SafeScope — Threat Intelligence Dashboard</title>
 
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
+<body class="bg-slate-900 text-slate-100 antialiased">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold">SafeScope</h1>
+        <p class="text-sm text-slate-400">Threat Intelligence Dashboard</p>
+      </div>
+      <div class="text-right text-sm text-slate-400">Status: <span id="status">Ready</span></div>
+    </header>
 
-<body class="bg-gray-900 text-white">
-
-  <!-- NAV -->
-  <nav class="bg-gray-800 border-b border-gray-700 px-4 py-3">
-    <div class="text-xl font-semibold">SafeScope</div>
-    <div class="text-xs text-gray-400">Threat Intelligence Dashboard</div>
-  </nav>
-
-  <main class="max-w-6xl mx-auto px-4 py-10">
-
-    <h1 class="text-center text-3xl font-bold mb-2">Threat Intelligence Dashboard</h1>
-    <p class="text-center text-gray-400 mb-10">
-      VirusTotal · WHOIS · DNS · IP Intelligence
-    </p>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-      <!-- FILE SCAN -->
-      <div class="card p-5 bg-gray-800 rounded-xl shadow-lg">
-        <h3 class="text-lg font-semibold mb-3">File Scan</h3>
-        <input id="file-input" type="file" class="text-white mb-3">
-        <button onclick="scanFile()" class="btn-primary w-full">Scan File</button>
-
-        <div id="file-loading" class="hidden mt-3 text-blue-400">Scanning...</div>
-        <div id="file-results" class="hidden mt-3"></div>
+    <!-- Controls -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-slate-800 p-4 rounded-lg">
+        <label class="block text-sm text-slate-300 mb-2">Scan Domain</label>
+        <div class="flex gap-2">
+          <input id="domain-input" type="text" placeholder="example.com" class="flex-1 rounded px-3 py-2 bg-slate-900 border border-slate-700 focus:outline-none" />
+          <button id="scan-domain" class="btn-primary">Scan</button>
+        </div>
       </div>
 
-      <!-- DOMAIN CHECK -->
-      <div class="card p-5 bg-gray-800 rounded-xl shadow-lg">
-        <h3 class="text-lg font-semibold mb-3">Domain Check</h3>
-        <input id="domain-input" placeholder="example.com"
-               class="input-dark w-full mb-3">
-        <button onclick="checkDomain()" class="btn-primary w-full">Check Domain</button>
-
-        <div id="domain-loading" class="hidden mt-3 text-blue-400">Checking...</div>
-        <div id="domain-results" class="hidden mt-3"></div>
+      <div class="bg-slate-800 p-4 rounded-lg">
+        <label class="block text-sm text-slate-300 mb-2">Scan IP</label>
+        <div class="flex gap-2">
+          <input id="ip-input" type="text" placeholder="1.2.3.4" class="flex-1 rounded px-3 py-2 bg-slate-900 border border-slate-700 focus:outline-none" />
+          <button id="scan-ip" class="btn-primary">Scan</button>
+        </div>
       </div>
 
-      <!-- IP CHECK -->
-      <div class="card p-5 bg-gray-800 rounded-xl shadow-lg">
-        <h3 class="text-lg font-semibold mb-3">IP Check</h3>
-        <input id="ip-input" placeholder="8.8.8.8"
-               class="input-dark w-full mb-3">
-        <button onclick="checkIP()" class="btn-primary w-full">Check IP</button>
-
-        <div id="ip-loading" class="hidden mt-3 text-blue-400">Checking...</div>
-        <div id="ip-results" class="hidden mt-3"></div>
+      <div class="bg-slate-800 p-4 rounded-lg">
+        <label class="block text-sm text-slate-300 mb-2">Upload File</label>
+        <div class="flex gap-2">
+          <input id="file-input" type="file" class="rounded px-3 py-2 bg-slate-900 border border-slate-700 focus:outline-none text-sm" />
+          <button id="scan-file" class="btn-primary">Scan</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Max 50MB. Only upload files you are authorized to scan.</p>
       </div>
+    </section>
 
-    </div>
+    <!-- Summary / Cards -->
+    <section id="results" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Cards will be injected here -->
+    </section>
 
-    <!-- RESULT PANEL -->
-    <div id="result-panel" class="hidden mt-12 p-6 bg-gray-800 rounded-xl">
-      <h3 class="text-xl font-semibold mb-4 flex justify-between">
-        Analysis Result
-        <button id="report-btn" class="btn-secondary">Report</button>
-      </h3>
-
-      <div id="result-card" class="mb-6"></div>
-
-      <pre id="raw-json" class="bg-gray-900 p-4 rounded-lg text-sm overflow-x-auto"></pre>
-    </div>
-
-    <footer class="text-center text-gray-500 mt-10">
-      © 2025 SafeScope — Security Intelligence Toolkit
-    </footer>
-
-  </main>
-
-  <!-- REPORT MODAL -->
-  <div id="report-modal-backdrop" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center">
-    <div class="bg-gray-800 p-6 rounded-xl w-96">
-      <h3 class="text-xl font-bold mb-4">Submit Report</h3>
-
-      <label class="block mb-2 text-sm">Report Type</label>
-      <input id="modal-type" class="input-dark w-full mb-3">
-
-      <label class="block mb-2 text-sm">Target</label>
-      <input id="modal-target" class="input-dark w-full mb-3">
-
-      <label class="block mb-2 text-sm">Verdict</label>
-      <input id="modal-verdict" class="input-dark w-full mb-3">
-
-      <label class="block mb-2 text-sm">Notes (optional)</label>
-      <textarea id="modal-notes" class="input-dark w-full h-24 mb-4"></textarea>
-
-      <div class="flex justify-between">
-        <button onclick="closeReportModal()" class="btn-secondary">Cancel</button>
-        <button onclick="submitReport()" class="btn-primary">Send</button>
+    <!-- Detailed panel -->
+    <section class="mt-6">
+      <div id="details" class="bg-slate-800 rounded-lg p-4 hidden">
+        <div class="flex justify-between items-start mb-4">
+          <h2 id="details-title" class="text-lg font-medium">Details</h2>
+          <button id="close-details" class="text-sm text-slate-400 hover:text-white">Close</button>
+        </div>
+        <div id="details-content" class="text-sm text-slate-200 space-y-3">
+          <!-- Details injected here -->
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 
-  <script src="/static/js/script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
