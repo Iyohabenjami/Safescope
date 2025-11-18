@@ -1,87 +1,30 @@
-<!-- templates/report_modal.html -->
-<div class="modal fade" id="reportModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content bg-gray-900 text-white rounded-lg border border-gray-700 p-4">
-      <div class="modal-header flex justify-between items-center">
-        <h5 class="text-lg font-semibold"><i class="ri-flag-line mr-2"></i> Submit Report</h5>
-        <button type="button" class="btn-close text-white" data-bs-dismiss="modal">&times;</button>
+<!-- Simple report modal (dark-only) -->
+<div id="report-modal-backdrop" class="fixed inset-0 hidden items-center justify-center z-60">
+  <div class="modal-backdrop absolute inset-0"></div>
+  <div class="relative z-70 w-full max-w-lg mx-auto">
+    <div class="glass rounded-xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Submit Report</h3>
+        <button onclick="closeReportModal()" class="text-xl">✕</button>
       </div>
+      <div class="space-y-3">
+        <label class="text-sm">Report Type</label>
+        <input id="modal-type" class="w-full p-2 rounded-md" />
 
-      <div class="modal-body mt-3">
-        <form id="reportFormLocal" class="space-y-3">
-          <label class="block text-sm">Report Type</label>
-          <select id="report_type_local" class="input-field w-full">
-            <option value="domain">Domain Issue</option>
-            <option value="ip">IP Issue</option>
-            <option value="security">Security Concern</option>
-            <option value="false_positive">False Positive</option>
-          </select>
+        <label class="text-sm">Target</label>
+        <input id="modal-target" class="w-full p-2 rounded-md" />
 
-          <label class="block text-sm">Target</label>
-          <input id="report_target_local" class="input-field w-full" readonly />
+        <label class="text-sm">Verdict</label>
+        <input id="modal-verdict" class="w-full p-2 rounded-md" />
 
-          <label class="block text-sm">Verdict</label>
-          <select id="report_verdict_local" class="input-field w-full">
-            <option value="safe">Safe</option>
-            <option value="suspicious">Suspicious</option>
-            <option value="malicious">Malicious</option>
-          </select>
+        <label class="text-sm">Notes (optional)</label>
+        <textarea id="modal-notes" class="w-full p-2 rounded-md" rows="3"></textarea>
 
-          <label class="block text-sm">Notes (optional)</label>
-          <textarea id="report_note_local" class="input-field w-full" rows="3"></textarea>
-
-          <div class="text-right">
-            <button type="submit" class="btn-primary px-4 py-2">Send</button>
-          </div>
-        </form>
+        <div class="flex gap-2">
+          <button class="btn-accent w-full py-2 rounded-md" onclick="submitReport()">Send</button>
+          <button class="w-full py-2 rounded-md border" onclick="closeReportModal()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-/* report modal wiring for index page and result pages */
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('reportFormLocal');
-  form?.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const payload = {
-      type: document.getElementById('report_type_local').value,
-      target: document.getElementById('report_target_local').value,
-      verdict: document.getElementById('report_verdict_local').value,
-      note: document.getElementById('report_note_local').value
-    };
-
-    try {
-      const r = await fetch('/report', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const j = await r.json();
-      if (j.status === 'success') {
-        alert('Report submitted');
-        const modalEl = document.getElementById('reportModal');
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
-      } else {
-        alert('Report failed: ' + (j.message || 'unknown'));
-      }
-    } catch (err) {
-      alert('Network error sending report');
-    }
-  });
-
-  // When modal opens, fill the target field from global var if present
-  const modalEl = document.getElementById('reportModal');
-  modalEl?.addEventListener('show.bs.modal', function () {
-    const target = window.SAFE_SCOPE_REPORT_TARGET || document.querySelector('.page-title')?.textContent?.trim() || '';
-    const verdict = window.SAFE_SCOPE_REPORT_VERDICT || 'safe';
-    document.getElementById('report_target_local').value = target;
-    document.getElementById('report_verdict_local').value = verdict;
-    // auto-set type by rudimentary IP regex
-    const typeSel = document.getElementById('report_type_local');
-    typeSel.value = /\d+\.\d+\.\d+\.\d+/.test(target) ? 'ip' : 'domain';
-  });
-});
-</script>
