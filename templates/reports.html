@@ -1,38 +1,33 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Submitted Reports</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SafeScope - Reports</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="ui-bg">
-  <div class="container py-5">
-    <div class="panel-card p-4 mb-4">
-      <h3 class="fw-bold text-white">Submitted Reports</h3>
-      <p class="small text-light">Reports saved in-memory for this session.</p>
-    </div>
-
+<body class="bg-dark text-light min-h-screen">
+  <div class="max-w-4xl mx-auto p-6">
+    <h2 class="text-2xl mb-4">Submitted Reports</h2>
     {% if reports|length == 0 %}
-      <div class="panel-card p-4 text-center text-light">No reports submitted yet.</div>
+      <div class="glass p-4">No reports submitted yet.</div>
     {% else %}
-      <div class="list-group">
+      <div class="list-group space-y-2">
         {% for report in reports %}
-          <div class="list-group-item panel-card mb-2">
-            <div class="d-flex justify-content-between">
-              <div>
-                <strong class="text-white">{{ report.type | upper }}</strong>
-                <div class="small text-light">{{ report.target }}</div>
-              </div>
-              <div class="text-muted small">{{ report.timestamp }}</div>
+          <div class="glass p-4 flex justify-between items-start">
+            <div>
+              <div class="text-sm text-muted">{{ report.data.type | capitalize }} • {{ report.data.timestamp }}</div>
+              <div class="font-semibold">{{ report.data.target }}</div>
+              <div class="text-sm">Verdict: {{ report.data.verdict }}</div>
+            </div>
+            <div>
+              <a class="btn-accent px-3 py-2 rounded-md" href="/">Back</a>
             </div>
           </div>
         {% endfor %}
       </div>
     {% endif %}
-
-    <a href="/" class="btn btn-panel mt-4">Back to Dashboard</a>
   </div>
 </body>
 </html>
